@@ -25,6 +25,7 @@ const BARDOWN = {
       if (p.state !== 'benched' && !inRink(p.pos.x, p.pos.y, M)) out.push(`player ${p.team}/${p.idx} OOB (${p.pos.x | 0},${p.pos.y | 0})`);
       if (g.ball.carrier === p) carriers++;
       if (p.turbo < -0.01 || p.turbo > CONFIG.player.turboMax + 0.01) out.push('turbo out of range');
+      if (p.jumpZ < -0.01 || p.jumpZ > 90) out.push('jumpZ out of range: ' + p.jumpZ.toFixed(1));
     }
     if (carriers > 1) out.push('multiple carriers');
     if ((b.state === 'carried' || b.state === 'held') && !b.carrier) out.push('carried without carrier');

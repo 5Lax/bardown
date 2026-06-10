@@ -493,11 +493,11 @@ const Render = {
     ctx.font = '700 15px Arial';
     ctx.fillStyle = '#9fb0c0';
     const rows = [
-      'WASD run · mouse aims everything · SHIFT turbo',
-      'LEFT-CLICK hold to shoot, release to rip it · RIGHT-CLICK check',
-      'SPACE pass (switches player on D)',
-      'while charging: tap SPACE = behind-the-back · tap R-CLICK = between-the-legs',
-      'TURBO + shoot at the crease = DIVE · hold G = control your goalie',
+      'W attacks the far net · ASD run around it · mouse aims · always turbo',
+      'LEFT-CLICK: tap = PASS (switch on D) · hold = power up, release = RIP IT',
+      'RIGHT-CLICK check · SPACE jump (hop checks!)',
+      'shoot mid-air = JUMP SHOT · charging + tap R-CLICK = showtime',
+      'release at full sprint near the crease = DIVE · hold G = goalie',
     ];
     rows.forEach((s, i) => ctx.fillText(s, cx, 508 + i * 24));
     ctx.font = '700 13px Arial';

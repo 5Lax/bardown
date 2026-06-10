@@ -45,7 +45,7 @@ NFL Blitz (1997) meets box lacrosse. NOT a simulation — over-the-top arcade: e
 
 ## Controls
 
-Primary surface (advertised): WASD run · mouse aims · L-click hold-to-shoot (release = fire) · R-click check · SPACE pass / switch-on-D / faceoff mash · SHIFT turbo. Secondary (still wired, low-key): G hold = manual goalie, J/K legacy shoot/check keys, arrows aim, P pause, M mute, ENTER confirm.
+Primary surface (advertised): W = at the opposing net, ASD around (camera-relative in 3D; classic 2D keeps screen-relative) · mouse aims · L-click tap = pass / switch-on-D, hold >0.14 s = charge, release = shoot · R-click check · SPACE jump (airborne players dodge checks; release a shot mid-air = jump-shot special; goalies can't jump; can't scoop while airborne). Turbo is ALWAYS ON (`turboEnabled=false` hides the dead meter; `turboActive` now just means "at sprint speed" and gates hit-power/trails/dives). Dive auto-triggers on a sprinting release near the crease. Secondary: G hold = manual goalie, J/K legacy keys, arrows aim, P pause, M mute, gamepad A = dedicated pass.
 Gamepad (Xbox): left stick run, right stick aim, A pass, X shoot, B hit, RT turbo, LB goalie, Start pause.
 Aim→shot mapping: mouse y on net = placement; mouse depth past goal plane = height (top shelf). Stick: lateral = placement, push *through* the net = height.
 Special shots while charging: tap SPACE = behind-the-back, tap R-click = between-the-legs; SHIFT+click sprinting near crease = dive shot.

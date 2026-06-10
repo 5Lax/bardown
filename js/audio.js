@@ -81,6 +81,7 @@ const AudioSys = {
     this.noise(t, 0.10, 0.22 * power, 'lowpass', 380, 160, 1);
     if (power > 1.2) this.noise(t, 0.18, 0.18, 'bandpass', 900, 200, 2); },
   scoop()   { if (!this.ctx || this.muted) return; this.noise(this.t(), 0.05, 0.14, 'bandpass', 900, 1400, 2); },
+  jumpSfx() { if (!this.ctx || this.muted) return; this.noise(this.t(), 0.09, 0.1, 'bandpass', 500, 1500, 2); },
   tick()    { if (!this.ctx || this.muted) return; this.osc('square', 700, 690, this.t(), 0.035, 0.10); },
   riser()   { if (!this.ctx || this.muted) return; const t = this.t();
     this.osc('sawtooth', 180, 880, t, 0.7, 0.12); this.noise(t, 0.7, 0.10, 'bandpass', 400, 3000, 2); },

@@ -10,6 +10,7 @@ class Player {
     this.facing = team === 0 ? 0 : Math.PI;
     this.state = 'play';            // play | down | diving | benched
     this.turbo = P.turboMax; this.turboActive = false;
+    this.jumpZ = 0; this.jumpVz = 0;
     this.charge = 0; this.charging = false; this.pendingSpecial = null;
     this.hitCd = 0; this.scoopCd = 0; this.knockT = 0; this.diveT = 0; this.benchT = 0;
     this.catchTime = -99; this.lastAim = null; this.controlled = false;
@@ -17,7 +18,7 @@ class Player {
     this.resetIntent();
   }
   resetIntent() {
-    this.intent = { mx: 0, my: 0, aim: null, turbo: false, pass: false, passTo: null, shootHold: false, hit: false };
+    this.intent = { mx: 0, my: 0, aim: null, turbo: false, pass: false, passTo: null, shootHold: false, hit: false, jump: false };
   }
   get hasBall() { return this.game.ball.carrier === this; }
 
@@ -66,21 +67,26 @@ class Player {
     if (it.aim) this.lastAim = it.aim;
     const moving = Math.hypot(it.mx, it.my) > 0.1;
 
-    // turbo
-    const wantTurbo = it.turbo && moving;
-    if (wantTurbo && (this.turboActive ? this.turbo > 0 : this.turbo > P.turboMin)) {
-      this.turboActive = true;
-      if (!mods.onFire) this.turbo = Math.max(0, this.turbo - P.turboDrain * dt);
-      if (this.turbo <= 0) this.turboActive = false;
-    } else {
-      this.turboActive = false;
-      this.turbo = Math.min(P.turboMax, this.turbo + P.turboRegen * mods.turboRegen * dt);
+    // always-turbo: everyone runs hot; turboActive just flags "at sprint" for hits/trails/dives
+    this.turboActive = Math.hypot(this.vel.x, this.vel.y) > P.maxSpeed * 0.7;
+
+    // jump: hop checks, jump shots. Goalies stay grounded.
+    if (it.jump && !this.isGoalie && this.jumpZ <= 0 && this.jumpVz === 0) {
+      this.jumpVz = CONFIG.jump.v0;
+      AudioSys.jumpSfx();
+    }
+    if (this.jumpZ > 0 || this.jumpVz !== 0) {
+      this.jumpZ += this.jumpVz * dt;
+      this.jumpVz -= CONFIG.jump.grav * dt;
+      if (this.jumpZ <= 0) {
+        this.jumpZ = 0; this.jumpVz = 0;
+        Effects.burst(this.pos.x, this.pos.y, { n: 4, color: '#cfd6cf', spd: 90, life: 0.3, size: 2 });
+      }
     }
 
     // movement
     let maxSpd = P.maxSpeed * this.teamDef.spd * mods.speed * (mods.onFire ? CONFIG.fire.speed : 1);
-    let accel = this.turboActive ? P.turboAccel : P.accel;
-    if (this.turboActive) maxSpd *= P.turboMult;
+    let accel = P.accel;
     if (this.charging) maxSpd *= P.chargeSlow;
     if (this.hasBall) maxSpd *= P.carrySlow;
     if (this.isGoalie) { maxSpd *= 0.82; }
@@ -103,14 +109,22 @@ class Player {
         this.charging = true;
         this.charge = Math.min(1, this.charge + dt / CONFIG.shot.chargeTime);
       } else if (this.charging) {
-        g.fireShot(this, Math.max(0.25, this.charge), this.pendingSpecial);
+        let special = this.pendingSpecial;
+        if (!special && this.jumpZ > CONFIG.jump.dodgeZ) special = 'jump';
+        const sp = Math.hypot(this.vel.x, this.vel.y);
+        if (!special && g.specialsEnabled && this.jumpZ === 0 && sp > CONFIG.player.maxSpeed * 0.72 && g.startDive(this)) {
+          // sprinting release at the crease turns into a dive — startDive fires the shot mid-air
+        } else {
+          g.fireShot(this, Math.max(0.25, this.charge), special);
+        }
         this.charging = false; this.charge = 0; this.pendingSpecial = null;
       }
       if (it.pass) {
         if (this.charging && g.specialsEnabled) { this.pendingSpecial = 'btb'; }
         else if (!this.charging) g.tryPass(this, it.passTo);
       }
-      if (it.hit && this.charging && g.specialsEnabled) this.pendingSpecial = 'btl';
+      if (it.hit && this.charging && g.specialsEnabled)
+        this.pendingSpecial = Math.hypot(this.vel.x, this.vel.y) > 100 ? 'btb' : 'btl';
     } else {
       this.charging = false; this.charge = 0;
     }
@@ -136,7 +150,7 @@ class Player {
 
   tryHit() {
     const g = this.game, H = CONFIG.hit;
-    if (this.hitCd > 0 || this.state !== 'play') return;
+    if (this.hitCd > 0 || this.state !== 'play' || this.jumpZ > CONFIG.jump.dodgeZ) return;
     this.hitCd = H.cooldown;
     // lunge
     const f = this.facing;

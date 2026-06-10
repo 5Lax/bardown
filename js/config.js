@@ -11,11 +11,12 @@ const CONFIG = {
   crease:{ r: 92 },
 
   player: {
-    r: 15, accel: 2500, frict: 8.2, maxSpeed: 295,
+    r: 15, accel: 3200, frict: 8.2, maxSpeed: 358, // always-turbo: everyone moves at sprint pace
     carrySlow: 0.97, chargeSlow: 0.55,
     turboMult: 1.45, turboAccel: 3650, turboMax: 100, turboDrain: 36, turboRegen: 22, turboMin: 8,
     pickupR: 25, scoopCd: 0.45,
   },
+  jump: { v0: 255, grav: 780, dodgeZ: 10 },
   goalie: {
     r: 19, coverW: 52, coverH: 47, bodyH: 34, arcR: 30, maxLateral: 36,
     reflexSpeed: 195, holdTime: 0.85, roamR: 86, mass: 1.7,

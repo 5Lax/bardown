@@ -52,5 +52,14 @@ User supplied Blast Lacrosse (PS1) + NFL Blitz reference shots. Three changes:
 3. **Controls** collapsed to the advertised WASD + mouse + SPACE (+SHIFT turbo): L-click charge/shoot, R-click check, specials = tap SPACE / R-click while charging, dive = SHIFT+click at the crease. Faceoff mash now also accepts clicks. Legacy keys still work silently.
 **Tests:** headless batch PASS (sim untouched), 0 console errors across all captures, name-tag visibility verified, frames: tools/shot-blast-*.jpg.
 
+## Control rework + curved bodies (2026-06-10)
+Per user feedback on the Blast view:
+- **Camera-relative movement:** W now drives at the opposing net, ASD around it (input rotates only in 3D mode; classic 2D keeps screen axes). Arrows-aim rotated to match.
+- **SPACE = jump** (new sim mechanic): v0 255/grav 780 hop (~0.65 s air). Airborne players dodge cross-checks entirely (jumpZ > 10), can't scoop or throw checks, and a shot released mid-air is a JUMP SHOT special. CPU carriers hop pressure occasionally. Goalies grounded. Invariant added.
+- **Always-turbo:** meter and button retired; base speed 295→358, accel 3200. `turboActive` now just means "at sprint" (gates hit power, trails, dives). Re-tuned check: 18.5 combined goals (in band), steals dropped (faster legs beat lanes), specials nearly doubled — dive now auto-triggers on any sprinting release near the crease.
+- **One-button offense:** LMB tap (<0.14 s) = pass / switch on D; hold = charge, release = rip. RMB check. While charging, tap RMB = behind-the-back (moving) / between-the-legs (still). Gamepad keeps dedicated A-pass.
+- **Rounder athletes:** capsule torsos with wrap-around numbered jerseys (number at u=0.5 + split seam), capsule limbs, sphere heads under domed team helmets with brim+cage, neck, rounded gloves/cleats, cylinder shorts. Jump tuck pose; name tag rides jumpZ.
+**Tests:** isolated control diagnostics in-browser (W vector +144,0 toward enemy net; charge engages at the 0.14 s threshold; tap-pass launches; jump peak 36-42, clean landings; airborne dodge), 4-game headless batch PASS 0 violations, 0 console errors.
+
 ## Post-ship fix (2026-06-10)
 Main loop gained a setInterval watchdog: embedded webviews / occluded windows can suppress requestAnimationFrame entirely, which left the canvas frozen black (this is what made the in-app preview panel look dead). If rAF goes stale >250 ms, a 30 Hz timer drives the same tick(). Verified: game clock now advances in a fully hidden preview window.

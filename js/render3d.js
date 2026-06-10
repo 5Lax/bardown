@@ -325,22 +325,25 @@ const Render3D = {
     return { tex: t, FW, FH };
   },
 
+  // wrap-around jersey for capsule torsos: number at u=0.5 and split across the u=0 seam
   jerseyCanvas(td, number) {
     const c = document.createElement('canvas');
-    c.width = c.height = 128;
+    c.width = 256; c.height = 128;
     const x = c.getContext('2d');
     x.fillStyle = td.color;
-    x.fillRect(0, 0, 128, 128);
+    x.fillRect(0, 0, 256, 128);
     x.fillStyle = td.color2;
-    x.fillRect(0, 0, 128, 26);
+    x.fillRect(0, 0, 256, 24);
     x.fillStyle = td.trim;
-    x.fillRect(0, 98, 128, 8);
-    x.font = '900 64px "Arial Black",Impact,sans-serif';
+    x.fillRect(0, 100, 256, 8);
+    x.font = '900 52px "Arial Black",Impact,sans-serif';
     x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.lineWidth = 8; x.strokeStyle = td.color2;
-    x.strokeText(String(number), 64, 64);
-    x.fillStyle = '#ffffff';
-    x.fillText(String(number), 64, 64);
+    for (const nx of [0, 128, 256]) {
+      x.lineWidth = 7; x.strokeStyle = td.color2;
+      x.strokeText(String(number), nx, 64);
+      x.fillStyle = '#ffffff';
+      x.fillText(String(number), nx, 64);
+    }
     return new THREE.CanvasTexture(c);
   },
 
@@ -393,65 +396,76 @@ const Render3D = {
     const shoe = new THREE.MeshLambertMaterial({ color: 0x16181d });
     const glove = new THREE.MeshLambertMaterial({ color: 0x222630 });
 
-    // legs: hip pivot → thigh → knee pivot → shin → shoe
+    // legs: hip pivot → thigh → knee pivot → shin → shoe (capsules = rounded muscle)
     const mkLeg = (side) => {
       const hip = new THREE.Group();
       hip.position.set(0, 24, side * 5.5 * wide);
-      const thigh = new THREE.Mesh(new THREE.CylinderGeometry(3.2 * padR, 4.0 * padR, 12, 7), goalie ? trim : dark);
+      const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(3.4 * padR, 6.5, 3, 9), goalie ? trim : dark);
       thigh.position.y = -6;
       hip.add(thigh);
       const knee = new THREE.Group();
       knee.position.y = -12;
       hip.add(knee);
-      const shin = new THREE.Mesh(new THREE.CylinderGeometry(2.4 * padR, 3.1 * padR, 11, 7), goalie ? trim : new THREE.MeshLambertMaterial({ color: td.trim }));
+      const shin = new THREE.Mesh(new THREE.CapsuleGeometry(2.5 * padR, 6, 3, 9), goalie ? trim : new THREE.MeshLambertMaterial({ color: td.trim }));
       shin.position.y = -5.5;
       knee.add(shin);
-      const foot = new THREE.Mesh(new THREE.BoxGeometry(7.5, 3.2, 4.6), shoe);
-      foot.position.set(2, -11.5, 0);
+      const foot = new THREE.Mesh(new THREE.CapsuleGeometry(2.3, 4.2, 2, 8), shoe);
+      foot.rotation.z = Math.PI / 2;
+      foot.position.set(2.2, -11.3, 0);
       knee.add(foot);
       g.add(hip);
       return { hip, knee };
     };
     const legL = mkLeg(-1), legR = mkLeg(1);
-    // shorts over the hips
-    const shorts = new THREE.Mesh(new THREE.BoxGeometry(12.5, 9, 16 * wide), dark);
+    const shorts = new THREE.Mesh(new THREE.CylinderGeometry(7.6, 8.3, 9, 12), dark);
+    shorts.scale.z = 1.3 * wide;
     shorts.position.set(0, 24, 0);
     g.add(shorts);
 
-    // torso + pads + head
-    const torsoMats = [jersey, jersey, dark, dark, plain, plain];
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(13, 18, 20 * wide), torsoMats);
-    torso.position.set(0, 36, 0);
+    // torso: single capsule wearing the wrap-around jersey
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(6.4, 9.5, 4, 16), jersey);
+    torso.scale.set(1.0, 1, 1.55 * wide);
+    torso.position.set(0, 35.5, 0);
     upper.add(torso);
-    const pads = new THREE.Mesh(new THREE.BoxGeometry(15.5, 6, 26 * wide), plain);
-    pads.position.set(0, 44, 0);
+    // shoulder roll
+    const pads = new THREE.Mesh(new THREE.CapsuleGeometry(4.3, 15 * wide, 3, 10), plain);
+    pads.rotation.x = Math.PI / 2;
+    pads.position.set(0, 44.5, 0);
     upper.add(pads);
-    const head = new THREE.Mesh(new THREE.BoxGeometry(10.5, 9.5, 10.5), plain);
-    head.position.set(0, 53, 0);
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.8, 3.5, 8), skin);
+    neck.position.set(0, 47.5, 0);
+    upper.add(neck);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(5.3, 12, 10), skin);
+    head.position.set(0, 52.4, 0);
     upper.add(head);
-    const brim = new THREE.Mesh(new THREE.BoxGeometry(4.5, 1.8, 9.5), plain);
-    brim.position.set(6.2, 54.5, 0);
+    const helmet = new THREE.Mesh(new THREE.SphereGeometry(6.0, 12, 10), plain);
+    helmet.scale.set(1.04, 0.9, 1.04);
+    helmet.position.set(-0.4, 53.6, 0);
+    upper.add(helmet);
+    const brim = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.5, 8.2), plain);
+    brim.position.set(5.8, 54.2, 0);
     upper.add(brim);
-    const cage = new THREE.Mesh(new THREE.BoxGeometry(2.4, 6.5, 8.8),
+    const cage = new THREE.Mesh(new THREE.BoxGeometry(2.0, 5.6, 7.6),
       new THREE.MeshLambertMaterial({ color: 0x16181d }));
-    cage.position.set(6, 51.5, 0);
+    cage.position.set(5.6, 50.8, 0);
     upper.add(cage);
 
-    // arms: shoulder pivot → sleeve+upper → elbow pivot → bare forearm → glove
+    // arms: shoulder pivot → sleeve → elbow pivot → bare forearm → glove
     const mkArm = (side) => {
       const sh = new THREE.Group();
       sh.position.set(0, 43, side * (13.5 * wide));
-      const up = new THREE.Mesh(new THREE.CylinderGeometry(2.9, 3.4, 10, 7), plain);
-      up.position.y = -5;
+      const up = new THREE.Mesh(new THREE.CapsuleGeometry(2.8, 5.5, 3, 9), plain);
+      up.position.y = -4.8;
       sh.add(up);
       const el = new THREE.Group();
       el.position.y = -10;
       sh.add(el);
-      const fore = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.7, 9, 7), skin);
-      fore.position.y = -4.5;
+      const fore = new THREE.Mesh(new THREE.CapsuleGeometry(2.1, 5, 3, 9), skin);
+      fore.position.y = -4.2;
       el.add(fore);
-      const hand = new THREE.Mesh(new THREE.BoxGeometry(4.6, 4.2, 4.6), glove);
-      hand.position.y = -10.5;
+      const hand = new THREE.Mesh(new THREE.SphereGeometry(2.9, 9, 8), glove);
+      hand.scale.y = 1.15;
+      hand.position.y = -9.8;
       el.add(hand);
       upper.add(sh);
       return { sh, el };
@@ -538,10 +552,10 @@ const Render3D = {
 
     if (p.controlled && this.game.mode === 'p1') {
       rig.marker.visible = true;
-      rig.marker.position.set(g.position.x, 74 + Math.sin(t * 5) * 3, g.position.z);
+      rig.marker.position.set(g.position.x, 74 + p.jumpZ + Math.sin(t * 5) * 3, g.position.z);
       rig.marker.rotation.y = t * 2;
       rig.tag.visible = true;
-      rig.tag.position.set(g.position.x, 88, g.position.z);
+      rig.tag.position.set(g.position.x, 88 + p.jumpZ, g.position.z);
     }
 
     this.zeroPose(rig);
@@ -579,15 +593,22 @@ const Render3D = {
 
     g.rotation.set(0, -p.facing, 0);
     rig.phase += spd * dt * 0.055;
-    const runK = clamp(spd / 220, 0, 1);
+    const runK = clamp(spd / 250, 0, 1);
     const ph = rig.phase;
-    g.position.y = Math.abs(Math.sin(ph)) * 1.7 * runK;
+    g.position.y = Math.abs(Math.sin(ph)) * 1.7 * runK + p.jumpZ;
     g.rotateZ(-runK * 0.12 * (p.isGoalie ? 0.3 : 1));
-    // legs: thigh swing + knee flexion on the recovery stride
-    rig.legL.hip.rotation.x = Math.sin(ph) * 0.78 * runK;
-    rig.legR.hip.rotation.x = -Math.sin(ph) * 0.78 * runK;
-    rig.legL.knee.rotation.x = Math.max(0.08, -Math.sin(ph)) * 1.0 * runK + 0.06;
-    rig.legR.knee.rotation.x = Math.max(0.08, Math.sin(ph)) * 1.0 * runK + 0.06;
+    // legs: thigh swing + knee flexion on the recovery stride; tuck in the air
+    if (p.jumpZ > 4) {
+      rig.legL.hip.rotation.x = -0.35;
+      rig.legR.hip.rotation.x = -0.35;
+      rig.legL.knee.rotation.x = 1.2;
+      rig.legR.knee.rotation.x = 1.2;
+    } else {
+      rig.legL.hip.rotation.x = Math.sin(ph) * 0.78 * runK;
+      rig.legR.hip.rotation.x = -Math.sin(ph) * 0.78 * runK;
+      rig.legL.knee.rotation.x = Math.max(0.08, -Math.sin(ph)) * 1.0 * runK + 0.06;
+      rig.legR.knee.rotation.x = Math.max(0.08, Math.sin(ph)) * 1.0 * runK + 0.06;
+    }
 
     const hasBall = this.game.ball.carrier === p;
     const swinging = p.hitCd > CONFIG.hit.cooldown - 0.18;

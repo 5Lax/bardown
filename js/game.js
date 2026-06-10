@@ -11,7 +11,7 @@ class Game {
 
     // phase gates — flipped on as build phases land
     this.hitsEnabled = true;
-    this.turboEnabled = true;
+    this.turboEnabled = false; // always-turbo now: meter & button retired, everyone sprints
     this.interceptEnabled = true;
     this.specialsEnabled = true;
     this.rubberEnabled = true;
@@ -190,7 +190,7 @@ class Game {
     const fb = this.faceoffBattle;
     if (this.stateT < F.readyTime) return;
     if (!fb.go) { fb.go = true; AudioSys.whistle(); }
-    if (this.mode === 'p1' && (Input.pressed('pass') || Input.pressed('shoot'))) { fb.mashes++; AudioSys.tick(); }
+    if (this.mode === 'p1' && (Input.pressed('pass') || Input.pressed('shoot') || Input.pressed('jump'))) { fb.mashes++; AudioSys.tick(); }
     fb.cpuRate = fb.cpuRate || (F.cpuRate + this.rng.range(-F.cpuRateJitter, F.cpuRateJitter) + (this.rubberEnabled ? clamp(this.score[this.mode === 'p1' ? this.humanTeam : 0] - this.score[1], -3, 3) * 0.6 : 0));
     fb.cpu += fb.cpuRate * dt;
     if (this.mode === 'cpu') fb.mashes += (F.cpuRate + this.rng.range(-1, 1)) * dt;
@@ -278,12 +278,17 @@ class Game {
     const mv = Input.move();
     it.mx = mv.x; it.my = mv.y;
     it.aim = Input.aimFor(p);
-    it.turbo = this.turboEnabled && Input.held('turbo');
-    if (Input.pressed('shoot') && p.hasBall && Input.held('turbo') && !p.charging) {
-      if (this.startDive(p)) return;
+    if (Input.pressed('jump')) it.jump = true;
+    // LMB: quick tap = pass (switch on D), hold past the threshold = charge a shot
+    const lmb = Input.held('shoot');
+    if (Input.pressed('shoot')) p.lmbAt = this.time;
+    it.shootHold = lmb && p.hasBall && (this.time - (p.lmbAt !== undefined ? p.lmbAt : -9)) > 0.14;
+    if (p.wasLmb && !lmb && (this.time - (p.lmbAt !== undefined ? p.lmbAt : -9)) <= 0.14) {
+      if (p.hasBall || (this.ball.state === 'held' && this.ball.carrier === p)) it.pass = true;
+      else this.manualSwitch();
     }
-    it.shootHold = Input.held('shoot') && p.hasBall;
-    if (Input.pressed('pass')) {
+    p.wasLmb = lmb;
+    if (Input.pressed('pass')) { // gamepad A keeps a dedicated pass button
       if (p.hasBall || (this.ball.state === 'held' && this.ball.carrier === p)) it.pass = true;
       else this.manualSwitch();
     }
@@ -432,6 +437,7 @@ class Game {
     let victim = null, bd = 1e9;
     for (const v of this.players) {
       if (v === hitter || v.team === hitter.team || v.state === 'benched') continue;
+      if (v.jumpZ > CONFIG.jump.dodgeZ) continue; // hopped the check
       const d = dist(hitter.pos.x, hitter.pos.y, v.pos.x, v.pos.y);
       if (d > H.range + v.r) continue;
       const a = angTo(hitter.pos.x, hitter.pos.y, v.pos.x, v.pos.y);
@@ -521,7 +527,7 @@ class Game {
     if (b.state === 'loose') {
       let best = null, bd = 1e9;
       for (const p of this.players) {
-        if (p.state !== 'play' || p.scoopCd > 0) continue;
+        if (p.state !== 'play' || p.scoopCd > 0 || p.jumpZ > 8) continue;
         const reach = p.isGoalie ? CONFIG.player.pickupR + 4 : CONFIG.player.pickupR;
         const d = dist(p.pos.x, p.pos.y, b.pos.x, b.pos.y);
         if (d < reach && d < bd) { bd = d; best = p; }

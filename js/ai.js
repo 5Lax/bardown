@@ -105,6 +105,8 @@ const AI = {
         if (game.rng.chance(diveP) && game.startDive(p, mods.desperation)) return;
       }
       const press = this.openness(game, p);
+      // hop an incoming check when a defender is breathing on you
+      if (press < 46 && p.jumpZ === 0 && game.rng.chance(0.16)) p.intent.jump = true;
       const q = (1 - dNet / 560) * 0.62
         + clamp(front, 0, 1) * 0.30
         - (press < 55 ? 0.18 : 0)

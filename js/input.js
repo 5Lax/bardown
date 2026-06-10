@@ -61,9 +61,15 @@ const Input = {
   padBtn(n) { return !!(this.pad && this.pad.buttons[n] && this.pad.buttons[n].pressed); },
 
   move() {
-    let x = (this.keys.KeyD ? 1 : 0) - (this.keys.KeyA ? 1 : 0);
-    let y = (this.keys.KeyS ? 1 : 0) - (this.keys.KeyW ? 1 : 0);
-    x += this.axis(0); y += this.axis(1);
+    let x, y;
+    if (typeof Render3D !== 'undefined' && Render3D.active) {
+      // end camera looks up-floor (+x): W = at the opposing net, A/D strafe across
+      x = (this.keys.KeyW ? 1 : 0) - (this.keys.KeyS ? 1 : 0) - this.axis(1);
+      y = (this.keys.KeyD ? 1 : 0) - (this.keys.KeyA ? 1 : 0) + this.axis(0);
+    } else {
+      x = (this.keys.KeyD ? 1 : 0) - (this.keys.KeyA ? 1 : 0) + this.axis(0);
+      y = (this.keys.KeyS ? 1 : 0) - (this.keys.KeyW ? 1 : 0) + this.axis(1);
+    }
     const l = Math.hypot(x, y);
     return l > 1 ? { x: x / l, y: y / l } : { x, y };
   },
@@ -81,8 +87,14 @@ const Input = {
       const m = this.mouseRink();
       return { x: m.x - p.pos.x, y: m.y - p.pos.y, mouse: true };
     }
-    const ax = (this.keys.ArrowRight ? 1 : 0) - (this.keys.ArrowLeft ? 1 : 0);
-    const ay = (this.keys.ArrowDown ? 1 : 0) - (this.keys.ArrowUp ? 1 : 0);
+    let ax, ay;
+    if (typeof Render3D !== 'undefined' && Render3D.active) {
+      ax = (this.keys.ArrowUp ? 1 : 0) - (this.keys.ArrowDown ? 1 : 0);
+      ay = (this.keys.ArrowRight ? 1 : 0) - (this.keys.ArrowLeft ? 1 : 0);
+    } else {
+      ax = (this.keys.ArrowRight ? 1 : 0) - (this.keys.ArrowLeft ? 1 : 0);
+      ay = (this.keys.ArrowDown ? 1 : 0) - (this.keys.ArrowUp ? 1 : 0);
+    }
     if (ax || ay) return { x: ax, y: ay, mouse: false };
     return null;
   },
@@ -103,7 +115,8 @@ const Input = {
       return hit;
     };
     switch (action) {
-      case 'pass': return eat('Space', 'PadA');
+      case 'pass': return eat('PadA');
+      case 'jump': return eat('Space', 'PadY');
       case 'shoot': return eat('KeyJ', 'MouseL', 'PadX');
       case 'hit': return eat('KeyK', 'MouseR', 'PadB');
       case 'pause': return eat('KeyP', 'Escape', 'PadStart');
