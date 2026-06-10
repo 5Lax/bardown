@@ -34,4 +34,10 @@
 **Determinism:** browser replay of seed 9090 matched the Node sim stat-for-stat (5-7, shots 106/82, hits 244/160).
 
 ## Ship state
-All 5 phases complete. Open `index.html` (or `node tools/serve.js` → http://localhost:8347). `?test=1&seed=N` = CPU autotest mode. Headless CI: `node tools/headless-test.js batch 6` → RESULT: PASS, zero invariant violations.
+All 5 phases complete.
+- **Hosted:** https://5lax.github.io/bardown/ (GitHub Pages, repo github.com/5Lax/bardown, deploys on push to main)
+- **Local:** double-click `PLAY.bat`, or open `index.html` directly, or `node tools/serve.js` → http://localhost:8347
+- `?test=1&seed=N` = CPU autotest mode. Headless CI: `node tools/headless-test.js batch 6` → RESULT: PASS, zero invariant violations.
+
+## Post-ship fix (2026-06-10)
+Main loop gained a setInterval watchdog: embedded webviews / occluded windows can suppress requestAnimationFrame entirely, which left the canvas frozen black (this is what made the in-app preview panel look dead). If rAF goes stale >250 ms, a 30 Hz timer drives the same tick(). Verified: game clock now advances in a fully hidden preview window.
