@@ -386,7 +386,7 @@ const Render = {
         } else {
           ctx.font = '900 34px "Arial Black",Impact,sans-serif';
           ctx.fillStyle = '#ff5050';
-          ctx.fillText('MASH SPACE!', cx, cy - 50);
+          ctx.fillText('MASH SPACE / CLICK!', cx, cy - 50);
           const w = 200;
           ctx.fillStyle = 'rgba(0,0,0,0.6)';
           ctx.fillRect(cx - w - 10, cy + 56, w, 12);
@@ -493,12 +493,13 @@ const Render = {
     ctx.font = '700 15px Arial';
     ctx.fillStyle = '#9fb0c0';
     const rows = [
-      'WASD run · mouse aims · SHIFT turbo',
-      'SPACE pass (switch on D) · J / click hold-to-shoot · K / right-click CHECK',
-      'while charging: tap SPACE = behind-the-back · tap K = between-the-legs',
-      'TURBO + shoot at the crease = DIVE · hold G = goalie',
+      'WASD run · mouse aims everything · SHIFT turbo',
+      'LEFT-CLICK hold to shoot, release to rip it · RIGHT-CLICK check',
+      'SPACE pass (switches player on D)',
+      'while charging: tap SPACE = behind-the-back · tap R-CLICK = between-the-legs',
+      'TURBO + shoot at the crease = DIVE · hold G = control your goalie',
     ];
-    rows.forEach((s, i) => ctx.fillText(s, cx, 520 + i * 24));
+    rows.forEach((s, i) => ctx.fillText(s, cx, 508 + i * 24));
     ctx.font = '700 13px Arial';
     ctx.fillStyle = 'rgba(159,176,192,0.6)';
     ctx.fillText('30-second shot clock · hit anyone, anytime · 3 unanswered = ON FIRE', cx, 650);

@@ -45,5 +45,12 @@ All 5 phases complete.
 **Iteration:** 3 screenshot rounds — fixed drone-high camera → broadcast angle, jersey numbers on wrong box faces (rigs face +X), floating crowd → terraces, dark helmet blobs → team shells, +18% player scale.
 **Tests:** headless batch PASS (sim untouched), 0 console errors, 2.06 ms/frame full tick (sim+render), raycast aim verified, goal/title/action frames captured (tools/shot-3d-*.jpg).
 
+## Blast Lacrosse pass — camera, bodies, controls (2026-06-10)
+User supplied Blast Lacrosse (PS1) + NFL Blitz reference shots. Three changes:
+1. **Camera** swapped from sideline broadcast to the Blast end-on view: parked behind the human team's end, floor running up-screen, tracking the ball down the length of the rink — your own net sits in the foreground (seen through its mesh) on defense, and attacking is a close-up at the far crease. Floor wordmark (home team, Bandits-style) painted oriented for this camera.
+2. **Bodies** went from voxel-toys to articulated low-poly athletes: hip/knee and shoulder/elbow joints (real knee flexion in the run cycle), tapered limb segments, 8 skin tones (deterministic per player), short-sleeve jerseys with bare forearms + gloves, shorts/socks/shoes, helmet brim + cage, two-hand stick grips per pose, goalie crouch with leg pads. Controlled player gets a Blitz-style floating "4 JOHNSON" name tag (24 fictional surnames) — fixed to persist while you're knocked down.
+3. **Controls** collapsed to the advertised WASD + mouse + SPACE (+SHIFT turbo): L-click charge/shoot, R-click check, specials = tap SPACE / R-click while charging, dive = SHIFT+click at the crease. Faceoff mash now also accepts clicks. Legacy keys still work silently.
+**Tests:** headless batch PASS (sim untouched), 0 console errors across all captures, name-tag visibility verified, frames: tools/shot-blast-*.jpg.
+
 ## Post-ship fix (2026-06-10)
 Main loop gained a setInterval watchdog: embedded webviews / occluded windows can suppress requestAnimationFrame entirely, which left the canvas frozen black (this is what made the in-app preview panel look dead). If rAF goes stale >250 ms, a 30 Hz timer drives the same tick(). Verified: game clock now advances in a fully hidden preview window.

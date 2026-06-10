@@ -190,7 +190,7 @@ class Game {
     const fb = this.faceoffBattle;
     if (this.stateT < F.readyTime) return;
     if (!fb.go) { fb.go = true; AudioSys.whistle(); }
-    if (this.mode === 'p1' && Input.pressed('pass')) { fb.mashes++; AudioSys.tick(); }
+    if (this.mode === 'p1' && (Input.pressed('pass') || Input.pressed('shoot'))) { fb.mashes++; AudioSys.tick(); }
     fb.cpuRate = fb.cpuRate || (F.cpuRate + this.rng.range(-F.cpuRateJitter, F.cpuRateJitter) + (this.rubberEnabled ? clamp(this.score[this.mode === 'p1' ? this.humanTeam : 0] - this.score[1], -3, 3) * 0.6 : 0));
     fb.cpu += fb.cpuRate * dt;
     if (this.mode === 'cpu') fb.mashes += (F.cpuRate + this.rng.range(-1, 1)) * dt;

@@ -45,10 +45,11 @@ NFL Blitz (1997) meets box lacrosse. NOT a simulation — over-the-top arcade: e
 
 ## Controls
 
-Keyboard: WASD run · mouse aims (or arrows / right stick) · SPACE pass / switch-on-D · J or L-click hold-to-shoot (release = fire) · K or R-click check/hit · SHIFT turbo · G hold = manual goalie · P pause · M mute · ENTER confirm.
+Primary surface (advertised): WASD run · mouse aims · L-click hold-to-shoot (release = fire) · R-click check · SPACE pass / switch-on-D / faceoff mash · SHIFT turbo. Secondary (still wired, low-key): G hold = manual goalie, J/K legacy shoot/check keys, arrows aim, P pause, M mute, ENTER confirm.
 Gamepad (Xbox): left stick run, right stick aim, A pass, X shoot, B hit, RT turbo, LB goalie, Start pause.
 Aim→shot mapping: mouse y on net = placement; mouse depth past goal plane = height (top shelf). Stick: lateral = placement, push *through* the net = height.
-Special shots while charging: tap PASS = behind-the-back, tap HIT = between-the-legs; TURBO+shoot sprinting near crease = dive shot.
+Special shots while charging: tap SPACE = behind-the-back, tap R-click = between-the-legs; SHIFT+click sprinting near crease = dive shot.
+Camera: Blast-Lacrosse end view — parked behind the human end, floor runs up-screen (+x); `Render3D.syncCamera` owns it.
 
 ## Debug API & testing protocol (run after EVERY phase)
 

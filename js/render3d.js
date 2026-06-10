@@ -1,10 +1,17 @@
 // WebGL view layer (Three.js r147, global THREE). The 2D sim in game.js stays the
 // source of truth — this maps rink coords (x,y in px, z height) onto a 3D arena:
 // worldX = x-640, worldY = height, worldZ = y-415. Rigs face +X at yaw 0; yaw = -facing.
-// Cosmetic Math.random only. Never call game.rng here.
+// Camera is Blast-Lacrosse style: parked behind the human team's end, looking down
+// the length of the floor (+x = up-screen). Cosmetic Math.random only; never game.rng.
 const Render3D = {
   active: false,
   game: null, t: 0, hype: 0,
+
+  SKINS: [0x8d5524, 0xc68642, 0xe0ac69, 0xf1c27d, 0x5a3825, 0xa26b3d, 0x7a4a28, 0xd9a06b],
+  NAMES: ['JOHNSON', 'BARNES', 'RIVERA', 'OKAFOR', 'LACROIX', 'KOWALSKI', 'TANAKA', 'MURPHY',
+    'DIAZ', 'SINGH', 'PETROV', 'HALE', 'NDIAYE', 'CARTER', 'MAKI', 'ROSSI',
+    'DUBOIS', 'KIM', 'ANDERSEN', 'WALSH', 'CRUZ', 'IVERSEN', 'BLACKBIRD', 'VANCE'],
+  NUMBERS: [4, 7, 13, 22, 88, 30],
 
   init(canvas) {
     if (typeof THREE === 'undefined' || !HAS_DOM) return false;
@@ -15,11 +22,11 @@ const Render3D = {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     this.renderer.setClearColor(0x0b0d12);
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(0x0b0d12, 1150, 2300);
-    this.camera = new THREE.PerspectiveCamera(42, CONFIG.canvas.w / CONFIG.canvas.h, 10, 4000);
-    this.camera.position.set(0, 430, 640);
-    this.camTarget = new THREE.Vector3(0, 20, 0);
-    this.camPos = new THREE.Vector3(0, 430, 640);
+    this.scene.fog = new THREE.Fog(0x0b0d12, 1250, 2400);
+    this.camera = new THREE.PerspectiveCamera(46, CONFIG.canvas.w / CONFIG.canvas.h, 10, 4000);
+    this.camera.position.set(-500, 290, 0);
+    this.camTarget = new THREE.Vector3(0, 12, 0);
+    this.camPos = new THREE.Vector3(-500, 290, 0);
     this.raycaster = new THREE.Raycaster();
     this.floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
@@ -43,7 +50,6 @@ const Render3D = {
 
   // ---- static arena ----
 
-  // sample the rounded-rect board path; returns [{x,y,tangentAngle}]
   boardPath(spacing, inset) {
     const r = CONFIG.rink, cr = r.corner - (inset || 0);
     const x0 = r.x - (inset || 0), y0 = r.y - (inset || 0);
@@ -96,7 +102,6 @@ const Render3D = {
   },
 
   buildNets() {
-    this.netGroups = [];
     const postMat = new THREE.MeshLambertMaterial({ color: 0xff3b30 });
     const meshTex = this.gridTexture();
     const netMat = new THREE.MeshLambertMaterial({ map: meshTex, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
@@ -113,7 +118,6 @@ const Render3D = {
       bar.rotation.x = Math.PI / 2;
       bar.position.copy(this.W(net.x, net.cy, H));
       grp.add(bar);
-      // netting: two sides + sloped back
       const back = new THREE.Mesh(new THREE.PlaneGeometry(half * 2, H * 1.12), netMat);
       back.position.copy(this.W(net.x - net.f * dep, net.cy, H * 0.45));
       back.rotation.y = Math.PI / 2;
@@ -125,12 +129,10 @@ const Render3D = {
         grp.add(side);
       }
       this.scene.add(grp);
-      this.netGroups.push(grp);
     }
   },
 
   buildCrowd() {
-    // stepped concrete terraces under the fans
     const terracePts = [];
     for (let tier = 0; tier < 4; tier++) {
       for (const p of this.boardPath(13, 40 + tier * 27)) terracePts.push({ ...p, tier });
@@ -195,7 +197,6 @@ const Render3D = {
     );
     this.ballShadow.rotation.x = -Math.PI / 2;
     this.scene.add(this.ballShadow);
-    // shot ghost trail
     this.ghosts = [];
     for (let i = 0; i < 8; i++) {
       const m = new THREE.Mesh(new THREE.SphereGeometry(5, 8, 6),
@@ -204,7 +205,6 @@ const Render3D = {
       this.ghosts.push({ m, life: 0 });
     }
     this.ghostIdx = 0; this.ghostCd = 0;
-    // particle sprites synced from Effects.particles
     this.sprites = [];
     this.spriteMats = new Map();
     for (let i = 0; i < 240; i++) {
@@ -213,7 +213,6 @@ const Render3D = {
       this.scene.add(s);
       this.sprites.push(s);
     }
-    // floor trail quads (turbo streaks) synced from Effects.trails
     this.trailQuads = [];
     for (let i = 0; i < 120; i++) {
       const q = new THREE.Mesh(new THREE.CircleGeometry(5, 8),
@@ -223,7 +222,6 @@ const Render3D = {
       this.scene.add(q);
       this.trailQuads.push(q);
     }
-    // aim reticle + pass marker
     this.reticle = new THREE.Mesh(new THREE.TorusGeometry(6.5, 1.1, 6, 18),
       new THREE.MeshBasicMaterial({ color: 0xff8c1a, transparent: true, opacity: 0.9 }));
     this.reticle.visible = false;
@@ -255,16 +253,14 @@ const Render3D = {
   },
 
   floorTexture(game) {
-    const FW = 1480, FH = 820; // world span the floor plane covers
+    const FW = 1480, FH = 820;
     const c = document.createElement('canvas');
     c.width = 2048; c.height = 1136;
     const x = c.getContext('2d');
     const sx = c.width / FW, sy = c.height / FH;
     const X = (wx) => (wx - 640 + FW / 2) * sx, Y = (wy) => (wy - 415 + FH / 2) * sy;
-    // apron
     x.fillStyle = '#14171f';
     x.fillRect(0, 0, c.width, c.height);
-    // turf
     const r = CONFIG.rink;
     const rr = (px, py, pw, ph, rad) => {
       x.beginPath();
@@ -280,7 +276,6 @@ const Render3D = {
     x.fill();
     x.save();
     x.clip();
-    // mow stripes
     for (let i = 0; i < 14; i++) {
       if (i % 2) continue;
       x.fillStyle = 'rgba(255,255,255,0.025)';
@@ -288,13 +283,11 @@ const Render3D = {
     }
     const cx = CONFIG.center.x, cy = CONFIG.center.y;
     x.lineWidth = 4 * sx;
-    // center line + circle
     x.strokeStyle = 'rgba(240,246,252,0.75)';
     x.beginPath(); x.moveTo(X(cx), Y(r.y)); x.lineTo(X(cx), Y(r.y + r.h)); x.stroke();
     x.beginPath(); x.ellipse(X(cx), Y(cy), 60 * sx, 60 * sy, 0, 0, Math.PI * 2); x.stroke();
     x.fillStyle = 'rgba(240,246,252,0.8)';
     x.beginPath(); x.ellipse(X(cx), Y(cy), 6 * sx, 6 * sy, 0, 0, Math.PI * 2); x.fill();
-    // creases + goal lines
     for (const net of CONFIG.goals) {
       const td = game ? game.teamDefs[net.i] : CONFIG.teams[net.i];
       x.fillStyle = Render.alpha(td.color, 0.22);
@@ -307,15 +300,25 @@ const Render3D = {
       x.lineTo(X(net.x), Y(net.cy + CONFIG.net.mouthW / 2));
       x.stroke();
     }
-    // floor logo
-    x.save();
-    x.translate(X(cx), Y(cy - 145));
-    x.transform(1, 0, -0.18, 1, 0, 0);
-    x.font = `900 ${64 * sx}px "Arial Black",Impact,sans-serif`;
-    x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.fillStyle = 'rgba(255,255,255,0.06)';
-    x.fillText('BARDOWN', 0, 0);
-    x.restore();
+    // home-team wordmark, oriented to read from the end camera (screen-up = +x)
+    if (game) {
+      const home = game.teamDefs[0];
+      x.save();
+      x.translate(X(cx), Y(cy));
+      x.rotate(Math.PI / 2);
+      x.transform(1, 0, -0.16, 1, 0, 0);
+      x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.font = `900 ${120 * sy}px "Arial Black",Impact,sans-serif`;
+      x.fillStyle = Render.alpha(home.color, 0.16);
+      x.fillText(home.name, 0, 0);
+      x.strokeStyle = Render.alpha(home.color2, 0.25);
+      x.lineWidth = 3 * sx;
+      x.strokeText(home.name, 0, 0);
+      x.font = `900 ${34 * sy}px "Arial Black",Impact,sans-serif`;
+      x.fillStyle = 'rgba(255,255,255,0.07)';
+      x.fillText('BARDOWN', 0, 105 * sy);
+      x.restore();
+    }
     x.restore();
     const t = new THREE.CanvasTexture(c);
     t.anisotropy = 4;
@@ -329,7 +332,7 @@ const Render3D = {
     x.fillStyle = td.color;
     x.fillRect(0, 0, 128, 128);
     x.fillStyle = td.color2;
-    x.fillRect(0, 0, 128, 26); // shoulder yoke
+    x.fillRect(0, 0, 128, 26);
     x.fillStyle = td.trim;
     x.fillRect(0, 98, 128, 8);
     x.font = '900 64px "Arial Black",Impact,sans-serif';
@@ -341,14 +344,44 @@ const Render3D = {
     return new THREE.CanvasTexture(c);
   },
 
-  // ---- player rigs ----
+  nameTag(p) {
+    const num = this.NUMBERS[p.idx % 6];
+    const ti = Math.max(0, CONFIG.teams.indexOf(p.teamDef));
+    const name = this.NAMES[(ti * 7 + p.idx * 5) % this.NAMES.length];
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 56;
+    const x = c.getContext('2d');
+    x.fillStyle = 'rgba(8,10,14,0.72)';
+    const w = 246, h = 44, rx = 10;
+    x.beginPath();
+    x.moveTo(5 + rx, 6);
+    x.arcTo(5 + w, 6, 5 + w, 6 + h, rx);
+    x.arcTo(5 + w, 6 + h, 5, 6 + h, rx);
+    x.arcTo(5, 6 + h, 5, 6, rx);
+    x.arcTo(5, 6, 5 + w, 6, rx);
+    x.fill();
+    x.fillStyle = p.teamDef.color;
+    x.fillRect(12, 14, 8, 28);
+    x.font = '900 28px "Arial Black",Impact,sans-serif';
+    x.textAlign = 'left'; x.textBaseline = 'middle';
+    x.fillStyle = '#ffffff';
+    x.fillText(num + '  ' + name, 30, 30);
+    const tex = new THREE.CanvasTexture(c);
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+    s.scale.set(64, 14, 1);
+    return s;
+  },
 
-  NUMBERS: [4, 7, 13, 22, 88, 30],
+  // ---- player rigs (articulated low-poly humans) ----
 
   makeRig(p) {
     const td = p.teamDef;
-    const G = p.isGoalie ? 1.0 : 1.0;
-    const wide = p.isGoalie ? 1.65 : 1.0;
+    const goalie = p.isGoalie;
+    const wide = goalie ? 1.5 : 1.0;
+    const padR = goalie ? 1.9 : 1.0;
+    const ti = Math.max(0, CONFIG.teams.indexOf(td));
+    const skinCol = this.SKINS[(ti * 3 + p.idx * 7) % this.SKINS.length];
+
     const g = new THREE.Group();
     const upper = new THREE.Group();
     g.add(upper);
@@ -356,52 +389,87 @@ const Render3D = {
     const plain = new THREE.MeshLambertMaterial({ color: td.color });
     const dark = new THREE.MeshLambertMaterial({ color: td.color2 });
     const trim = new THREE.MeshLambertMaterial({ color: td.trim });
-    const skin = new THREE.MeshLambertMaterial({ color: 0xd9a06b });
+    const skin = new THREE.MeshLambertMaterial({ color: skinCol });
+    const shoe = new THREE.MeshLambertMaterial({ color: 0x16181d });
+    const glove = new THREE.MeshLambertMaterial({ color: 0x222630 });
 
-    const legGeo = new THREE.BoxGeometry(p.isGoalie ? 13 : 8, 20, p.isGoalie ? 11 : 8);
-    legGeo.translate(0, -10, 0);
-    const legL = new THREE.Mesh(legGeo, p.isGoalie ? trim : dark);
-    const legR = new THREE.Mesh(legGeo, p.isGoalie ? trim : dark);
-    legL.position.set(0, 20, -6 * wide);
-    legR.position.set(0, 20, 6 * wide);
-    g.add(legL); g.add(legR);
+    // legs: hip pivot → thigh → knee pivot → shin → shoe
+    const mkLeg = (side) => {
+      const hip = new THREE.Group();
+      hip.position.set(0, 24, side * 5.5 * wide);
+      const thigh = new THREE.Mesh(new THREE.CylinderGeometry(3.2 * padR, 4.0 * padR, 12, 7), goalie ? trim : dark);
+      thigh.position.y = -6;
+      hip.add(thigh);
+      const knee = new THREE.Group();
+      knee.position.y = -12;
+      hip.add(knee);
+      const shin = new THREE.Mesh(new THREE.CylinderGeometry(2.4 * padR, 3.1 * padR, 11, 7), goalie ? trim : new THREE.MeshLambertMaterial({ color: td.trim }));
+      shin.position.y = -5.5;
+      knee.add(shin);
+      const foot = new THREE.Mesh(new THREE.BoxGeometry(7.5, 3.2, 4.6), shoe);
+      foot.position.set(2, -11.5, 0);
+      knee.add(foot);
+      g.add(hip);
+      return { hip, knee };
+    };
+    const legL = mkLeg(-1), legR = mkLeg(1);
+    // shorts over the hips
+    const shorts = new THREE.Mesh(new THREE.BoxGeometry(12.5, 9, 16 * wide), dark);
+    shorts.position.set(0, 24, 0);
+    g.add(shorts);
 
-    const torsoMats = [jersey, jersey, dark, dark, plain, plain]; // numbers on chest (+x) and back (-x)
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(15, 22, 24 * wide), torsoMats);
-    torso.position.set(0, 31, 0);
+    // torso + pads + head
+    const torsoMats = [jersey, jersey, dark, dark, plain, plain];
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(13, 18, 20 * wide), torsoMats);
+    torso.position.set(0, 36, 0);
     upper.add(torso);
-    const shoulders = new THREE.Mesh(new THREE.BoxGeometry(19, 9, 33 * wide), plain);
-    shoulders.position.set(0, 41, 0);
-    upper.add(shoulders);
-
-    const armGeo = new THREE.BoxGeometry(6.5, 18, 6.5);
-    armGeo.translate(0, -8, 0);
-    const armL = new THREE.Mesh(armGeo, plain);
-    const armR = new THREE.Mesh(armGeo, plain);
-    armL.position.set(0, 40, -17 * wide);
-    armR.position.set(0, 40, 17 * wide);
-    upper.add(armL); upper.add(armR);
-
-    const head = new THREE.Mesh(new THREE.BoxGeometry(12, 11, 12), plain);
-    head.position.set(0, 51, 0);
+    const pads = new THREE.Mesh(new THREE.BoxGeometry(15.5, 6, 26 * wide), plain);
+    pads.position.set(0, 44, 0);
+    upper.add(pads);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(10.5, 9.5, 10.5), plain);
+    head.position.set(0, 53, 0);
     upper.add(head);
-    const cage = new THREE.Mesh(new THREE.BoxGeometry(3, 8, 10),
+    const brim = new THREE.Mesh(new THREE.BoxGeometry(4.5, 1.8, 9.5), plain);
+    brim.position.set(6.2, 54.5, 0);
+    upper.add(brim);
+    const cage = new THREE.Mesh(new THREE.BoxGeometry(2.4, 6.5, 8.8),
       new THREE.MeshLambertMaterial({ color: 0x16181d }));
-    cage.position.set(7, 50, 0);
+    cage.position.set(6, 51.5, 0);
     upper.add(cage);
+
+    // arms: shoulder pivot → sleeve+upper → elbow pivot → bare forearm → glove
+    const mkArm = (side) => {
+      const sh = new THREE.Group();
+      sh.position.set(0, 43, side * (13.5 * wide));
+      const up = new THREE.Mesh(new THREE.CylinderGeometry(2.9, 3.4, 10, 7), plain);
+      up.position.y = -5;
+      sh.add(up);
+      const el = new THREE.Group();
+      el.position.y = -10;
+      sh.add(el);
+      const fore = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.7, 9, 7), skin);
+      fore.position.y = -4.5;
+      el.add(fore);
+      const hand = new THREE.Mesh(new THREE.BoxGeometry(4.6, 4.2, 4.6), glove);
+      hand.position.y = -10.5;
+      el.add(hand);
+      upper.add(sh);
+      return { sh, el };
+    };
+    const armL = mkArm(-1), armR = mkArm(1);
 
     // stick
     const stick = new THREE.Group();
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 36, 6),
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 38, 6),
       new THREE.MeshLambertMaterial({ color: 0xc9cfd8 }));
     shaft.rotation.z = Math.PI / 2;
     stick.add(shaft);
-    const loop = new THREE.Mesh(new THREE.TorusGeometry(p.isGoalie ? 7.5 : 5.5, 1.2, 6, 14), trim);
-    loop.position.set(20, 0, 0);
+    const loop = new THREE.Mesh(new THREE.TorusGeometry(goalie ? 7.5 : 5.5, 1.1, 6, 14), trim);
+    loop.position.set(21, 0, 0);
     stick.add(loop);
-    const pocket = new THREE.Mesh(new THREE.CircleGeometry(p.isGoalie ? 6.6 : 4.7, 10),
+    const pocket = new THREE.Mesh(new THREE.CircleGeometry(goalie ? 6.6 : 4.7, 10),
       new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, side: THREE.DoubleSide }));
-    pocket.position.set(20, 0, 0);
+    pocket.position.set(21, 0, 0);
     stick.add(pocket);
     g.add(stick);
 
@@ -411,22 +479,25 @@ const Render3D = {
     shadow.position.y = 0.6;
     this.scene.add(shadow);
 
-    const marker = new THREE.Mesh(new THREE.ConeGeometry(5.5, 11, 4),
+    const marker = new THREE.Mesh(new THREE.ConeGeometry(5, 10, 4),
       new THREE.MeshBasicMaterial({ color: 0xffffff }));
     marker.rotation.x = Math.PI;
     marker.visible = false;
     this.scene.add(marker);
+    const tag = this.nameTag(p);
+    tag.visible = false;
+    this.scene.add(tag);
 
-    g.scale.setScalar(p.isGoalie ? 1.12 : 1.18);
+    g.scale.setScalar(goalie ? 1.1 : 1.16);
     this.scene.add(g);
-    return { g, upper, legL, legR, armL, armR, head, stick, shadow, marker, jersey,
+    return { g, upper, legL, legR, armL, armR, stick, shadow, marker, tag, jersey,
       phase: Math.random() * 6, launch: 0, wasDown: false, releaseT: 0, prevCharging: false, stickTip: new THREE.Vector3() };
   },
 
   setGame(game) {
     if (this.rigs) {
       for (const r of this.rigs.values()) {
-        this.scene.remove(r.g); this.scene.remove(r.shadow); this.scene.remove(r.marker);
+        this.scene.remove(r.g); this.scene.remove(r.shadow); this.scene.remove(r.marker); this.scene.remove(r.tag);
       }
     }
     if (this.floorMesh) this.scene.remove(this.floorMesh);
@@ -443,20 +514,37 @@ const Render3D = {
 
   // ---- per-frame ----
 
+  zeroPose(rig) {
+    for (const leg of [rig.legL, rig.legR]) { leg.hip.rotation.set(0, 0, 0); leg.knee.rotation.set(0, 0, 0); }
+    for (const arm of [rig.armL, rig.armR]) { arm.sh.rotation.set(0, 0, 0); arm.el.rotation.set(0, 0, 0); }
+    rig.upper.rotation.set(0, 0, 0);
+    rig.upper.position.set(0, 0, 0);
+  },
+
   syncRig(p, rig, dt) {
     const g = rig.g, t = this.t;
     const spd = Math.hypot(p.vel.x, p.vel.y);
     g.position.set(p.pos.x - 640, 0, p.pos.y - 415);
     rig.shadow.position.set(g.position.x, 0.6, g.position.z);
     rig.marker.visible = false;
+    rig.tag.visible = false;
 
-    // fire glow
     const mods = this.game.getMods(p.team);
     rig.jersey.emissive = rig.jersey.emissive || new THREE.Color(0);
     rig.jersey.emissive.setHex(mods.onFire ? 0x662200 : 0x000000);
     if (mods.onFire && Math.random() < 0.25)
       Effects.burst(p.pos.x, p.pos.y, { n: 1, color: '#ff9930', spd: 40, life: 0.5, size: 3, drag: 1 });
     if (p.turboActive && Math.random() < 0.5) Effects.trail(p.pos.x, p.pos.y, p.teamDef.color, 6);
+
+    if (p.controlled && this.game.mode === 'p1') {
+      rig.marker.visible = true;
+      rig.marker.position.set(g.position.x, 74 + Math.sin(t * 5) * 3, g.position.z);
+      rig.marker.rotation.y = t * 2;
+      rig.tag.visible = true;
+      rig.tag.position.set(g.position.x, 88, g.position.z);
+    }
+
+    this.zeroPose(rig);
 
     if (p.state === 'down') {
       if (!rig.wasDown) { rig.wasDown = true; rig.launch = 0; }
@@ -466,11 +554,10 @@ const Render3D = {
       g.position.y = Math.sin(Math.min(fly, 1) * Math.PI) * 15;
       g.rotation.set(0, slideYaw + (p.knockT > 0.35 ? p.knockT * 7 : 0), 0);
       g.rotateZ(1.5 * fly);
-      rig.legL.rotation.set(0.5, 0, 0.25);
-      rig.legR.rotation.set(-0.4, 0, -0.25);
-      rig.armL.rotation.set(0, 0, 1.1);
-      rig.armR.rotation.set(0, 0, -1.1);
-      rig.upper.rotation.set(0, 0, 0);
+      rig.legL.hip.rotation.x = 0.7; rig.legL.knee.rotation.x = 0.9;
+      rig.legR.hip.rotation.x = -0.5; rig.legR.knee.rotation.x = 0.7;
+      rig.armL.sh.rotation.z = 1.6; rig.armL.el.rotation.x = 0.5;
+      rig.armR.sh.rotation.z = -1.6; rig.armR.el.rotation.x = 0.4;
       rig.stick.position.set(6, 4, 10);
       rig.stick.rotation.set(0, 0.8, 0);
       return;
@@ -482,25 +569,25 @@ const Render3D = {
       g.position.y = 7;
       g.rotation.set(0, yaw, 0);
       g.rotateZ(1.35);
-      rig.armL.rotation.set(0, 0, 2.6);
-      rig.armR.rotation.set(0, 0, -2.6);
+      rig.armL.sh.rotation.z = 2.7;
+      rig.armR.sh.rotation.z = -2.7;
       rig.stick.position.set(26, 14, 0);
       rig.stick.rotation.set(0, 0, 0.2);
       this.updateStickTip(rig);
       return;
     }
 
-    // upright
     g.rotation.set(0, -p.facing, 0);
     rig.phase += spd * dt * 0.055;
     const runK = clamp(spd / 220, 0, 1);
-    g.position.y = Math.abs(Math.sin(rig.phase)) * 1.6 * runK;
-    g.rotateZ(-runK * 0.13 * (p.isGoalie ? 0.3 : 1)); // lean into the run
-    rig.legL.rotation.z = 0;
-    rig.legR.rotation.z = 0;
-    rig.legL.rotation.x = Math.sin(rig.phase) * 0.75 * runK;
-    rig.legR.rotation.x = -Math.sin(rig.phase) * 0.75 * runK;
-    rig.upper.rotation.set(0, 0, 0);
+    const ph = rig.phase;
+    g.position.y = Math.abs(Math.sin(ph)) * 1.7 * runK;
+    g.rotateZ(-runK * 0.12 * (p.isGoalie ? 0.3 : 1));
+    // legs: thigh swing + knee flexion on the recovery stride
+    rig.legL.hip.rotation.x = Math.sin(ph) * 0.78 * runK;
+    rig.legR.hip.rotation.x = -Math.sin(ph) * 0.78 * runK;
+    rig.legL.knee.rotation.x = Math.max(0.08, -Math.sin(ph)) * 1.0 * runK + 0.06;
+    rig.legR.knee.rotation.x = Math.max(0.08, Math.sin(ph)) * 1.0 * runK + 0.06;
 
     const hasBall = this.game.ball.carrier === p;
     const swinging = p.hitCd > CONFIG.hit.cooldown - 0.18;
@@ -509,64 +596,66 @@ const Render3D = {
     rig.releaseT = Math.max(0, rig.releaseT - dt);
 
     if (p.isGoalie) {
-      // crouched stance, paddle down; spread on incoming shots
       const ball = this.game.ball;
       const threat = ball.state === 'shot' && ball.shot && ball.shot.net === p.team &&
         dist(ball.pos.x, ball.pos.y, p.pos.x, p.pos.y) < 300;
-      rig.upper.rotation.z = -0.18;
-      rig.armL.rotation.z = threat ? 2.2 : 0.7;
-      rig.armR.rotation.z = threat ? -2.2 : -0.7;
-      rig.legL.rotation.x = 0; rig.legR.rotation.x = 0;
-      rig.legL.rotation.z = threat ? 0.55 : 0.18;
-      rig.legR.rotation.z = threat ? -0.55 : -0.18;
-      rig.stick.position.set(13, threat ? 16 : 6, 8);
-      rig.stick.rotation.set(0, 0, threat ? 0.4 : -1.1);
+      // crouch
+      rig.upper.position.y = -3;
+      rig.upper.rotation.z = -0.16;
+      rig.legL.hip.rotation.x = -0.45; rig.legL.knee.rotation.x = 0.85;
+      rig.legR.hip.rotation.x = -0.45; rig.legR.knee.rotation.x = 0.85;
+      if (threat) {
+        rig.armL.sh.rotation.z = 2.1; rig.armR.sh.rotation.z = -2.1;
+        rig.legL.hip.rotation.z = 0.55; rig.legR.hip.rotation.z = -0.55;
+        rig.stick.position.set(12, 30, 0);
+        rig.stick.rotation.set(0, 0, 1.2);
+      } else {
+        rig.armL.sh.rotation.set(0.5, 0, 0.5); rig.armL.el.rotation.x = 0.7;
+        rig.armR.sh.rotation.set(0.5, 0, -0.5); rig.armR.el.rotation.x = 0.7;
+        rig.stick.position.set(12, 6, 4);
+        rig.stick.rotation.set(0, 0, -1.15);
+      }
     } else if (swinging) {
-      // cross-check thrust
-      rig.upper.rotation.z = -0.3;
-      rig.armL.rotation.set(0, 0, 1.5);
-      rig.armR.rotation.set(0, 0, -1.5);
-      rig.stick.position.set(15, 30, 0);
+      rig.upper.rotation.z = -0.32;
+      rig.armL.sh.rotation.set(-1.25, 0, 0.35); rig.armL.el.rotation.x = 0.25;
+      rig.armR.sh.rotation.set(-1.25, 0, -0.35); rig.armR.el.rotation.x = 0.25;
+      rig.stick.position.set(15, 31, 0);
       rig.stick.rotation.set(0, Math.PI / 2, 0);
     } else if (p.charging) {
       const wind = 0.45 + p.charge * 0.9;
-      rig.upper.rotation.y = wind * 0.5;
-      rig.armL.rotation.set(0.3, 0, 0.5);
-      rig.armR.rotation.set(-0.5, 0, -0.6);
-      rig.stick.position.set(-4, 33, 9);
+      rig.upper.rotation.y = wind * 0.55;
+      rig.armL.sh.rotation.set(0.5, 0, 0.5); rig.armL.el.rotation.x = 0.9;
+      rig.armR.sh.rotation.set(-0.8, 0, -0.4); rig.armR.el.rotation.x = 0.5;
+      rig.stick.position.set(-4, 34, 9);
       rig.stick.rotation.set(0, -wind, 0.25);
     } else if (rig.releaseT > 0) {
       const k = rig.releaseT / 0.18;
-      rig.upper.rotation.y = -0.5 * (1 - k);
-      rig.armL.rotation.set(0, 0, 0.4);
-      rig.armR.rotation.set(-1.2, 0, 0);
-      rig.stick.position.set(17, 30, -4);
+      rig.upper.rotation.y = -0.55 * (1 - k);
+      rig.armL.sh.rotation.set(-0.9, 0, 0.3);
+      rig.armR.sh.rotation.set(-1.4, 0, -0.2); rig.armR.el.rotation.x = 0.15;
+      rig.stick.position.set(17, 31, -4);
       rig.stick.rotation.set(0, 0.9 * (1 - k), -0.3);
     } else if (hasBall) {
-      // cradle
-      const rock = Math.sin(t * 6.5) * 0.14;
-      rig.armL.rotation.set(0.5 + rock * 0.4, 0, 0.3);
-      rig.armR.rotation.set(0.3, 0, -0.5);
-      rig.stick.position.set(10, 28, 6);
+      const rock = Math.sin(t * 6.5) * 0.13;
+      rig.upper.rotation.y = rock * 0.25;
+      rig.armL.sh.rotation.set(-0.55 + rock * 0.3, 0, 0.35); rig.armL.el.rotation.x = 1.0;
+      rig.armR.sh.rotation.set(0.35, 0, -0.3); rig.armR.el.rotation.x = 0.55;
+      rig.stick.position.set(10, 29, 5);
       rig.stick.rotation.set(rock, -0.35, 0.35 + rock * 0.3);
     } else {
-      rig.armL.rotation.set(Math.sin(rig.phase) * 0.3 * runK + 0.25, 0, 0.22);
-      rig.armR.rotation.set(-Math.sin(rig.phase) * 0.3 * runK + 0.25, 0, -0.22);
-      rig.stick.position.set(11, 24, 5);
+      rig.armL.sh.rotation.x = Math.sin(ph) * 0.42 * runK + 0.2;
+      rig.armR.sh.rotation.x = -Math.sin(ph) * 0.42 * runK + 0.2;
+      rig.armL.el.rotation.x = 0.55; rig.armR.el.rotation.x = 0.55;
+      rig.armL.sh.rotation.z = 0.18; rig.armR.sh.rotation.z = -0.18;
+      rig.stick.position.set(11, 25, 5);
       rig.stick.rotation.set(0, -0.3, 0.5);
     }
     this.updateStickTip(rig);
-
-    if (p.controlled && this.game.mode === 'p1') {
-      rig.marker.visible = true;
-      rig.marker.position.set(g.position.x, 70 + Math.sin(t * 5) * 3, g.position.z);
-      rig.marker.rotation.y = t * 2;
-    }
   },
 
   updateStickTip(rig) {
     rig.g.updateMatrixWorld();
-    rig.stickTip.set(20, 0, 0);
+    rig.stickTip.set(21, 0, 0);
     rig.stickTip.applyMatrix4(rig.stick.matrixWorld);
   },
 
@@ -581,7 +670,6 @@ const Render3D = {
     this.ballShadow.position.set(this.ballMesh.position.x, 0.7, this.ballMesh.position.z);
     const h = clamp(this.ballMesh.position.y / 60, 0, 1);
     this.ballShadow.material.opacity = 0.38 - h * 0.2;
-    // shot ghosts
     this.ghostCd -= 1;
     if (b.state === 'shot' && this.ghostCd <= 0) {
       this.ghostCd = 2;
@@ -597,7 +685,6 @@ const Render3D = {
   },
 
   syncFx(game) {
-    // particles → sprites
     const ps = Effects.particles;
     for (let i = 0; i < this.sprites.length; i++) {
       const s = this.sprites[i];
@@ -613,7 +700,6 @@ const Render3D = {
       const sz = p.size * 2.2;
       s.scale.set(sz, sz, 1);
     }
-    // floor trails
     const ts = Effects.trails;
     for (let i = 0; i < this.trailQuads.length; i++) {
       const q = this.trailQuads[i];
@@ -626,7 +712,6 @@ const Render3D = {
       q.position.set(tr.x - 640, 1.1 + i * 0.004, tr.y - 415);
       q.scale.setScalar(Math.max(0.2, tr.size / 5 * a));
     }
-    // aim reticle + pass marker
     this.reticle.visible = false;
     this.passMarker.visible = false;
     const c = game.controlled;
@@ -643,7 +728,7 @@ const Render3D = {
       const target = game.bestPassTarget(c);
       if (target) {
         this.passMarker.visible = true;
-        this.passMarker.position.set(target.pos.x - 640, 62 + Math.sin(this.t * 6) * 3, target.pos.y - 415);
+        this.passMarker.position.set(target.pos.x - 640, 66 + Math.sin(this.t * 6) * 3, target.pos.y - 415);
         this.passMarker.rotation.y = this.t * 3;
       }
     }
@@ -663,21 +748,21 @@ const Render3D = {
     this.crowd.instanceMatrix.needsUpdate = true;
   },
 
+  // Blast-style end camera: parked behind the human end, looking up-floor (+x).
   syncCamera(game, dt) {
     const b = game.ball;
     const bx = clamp(b.pos.x - 640, -600, 600);
     const bz = clamp(b.pos.y - 415, -275, 275);
-    const px = clamp(bx * 0.6, -285, 285);
-    const want = new THREE.Vector3(px, 348, 588 + bz * 0.12);
-    const wantT = new THREE.Vector3(clamp(bx * 0.85, -345, 345), 10, bz * 0.45);
-    const k = Math.min(1, dt * 3.2);
+    const want = new THREE.Vector3(clamp(bx - 345, -705, 95), 292, bz * 0.3);
+    const wantT = new THREE.Vector3(clamp(bx + 160, -540, 575), 10, clamp(bz * 0.62, -205, 205));
+    const k = Math.min(1, dt * 3.4);
     this.camPos.lerp(want, k);
     this.camTarget.lerp(wantT, k);
     this.camera.position.copy(this.camPos);
-    this.camera.position.x += Effects.shakeX * 0.8;
+    this.camera.position.z += Effects.shakeX * 0.8;
     this.camera.position.y += Effects.shakeY * 0.8;
     this.camera.lookAt(this.camTarget);
-    this.camera.fov = 39 - Effects.zoom * 55;
+    this.camera.fov = 46 - Effects.zoom * 55;
     this.camera.updateProjectionMatrix();
   },
 

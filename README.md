@@ -8,18 +8,20 @@ NFL Blitz meets box lacrosse. 5v5 plus goalies, 30-second shot clock, hit anyone
 
 ## Controls
 
+WASD + mouse + spacebar. That's the game.
+
 | Action | Keyboard / Mouse | Gamepad |
 |---|---|---|
 | Run | WASD | Left stick |
-| Aim | Mouse (or arrows) | Right stick |
+| Aim | Mouse | Right stick |
+| Shoot (hold = power) | Left-click | X |
+| Check / hit | Right-click | B |
 | Pass / switch on D | SPACE | A |
-| Shoot (hold = power) | J or Left-click | X |
-| Check / hit | K or Right-click | B |
 | Turbo | SHIFT | RT |
 | Goalie takeover | hold G | LB |
 | Pause / Mute | P / M | Start |
 
-Specials: while charging, tap **SPACE** = behind-the-back, tap **K** = between-the-legs. **TURBO + shoot** sprinting at the crease = dive shot. Shots in off the crossbar are BARDOWN goals — full team turbo refill.
+Specials: while charging a shot, tap **SPACE** = behind-the-back, tap **right-click** = between-the-legs. **SHIFT + click** sprinting at the crease = dive shot. Shots in off the crossbar are BARDOWN goals — full team turbo refill.
 
 ## Run locally
 
