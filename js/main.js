@@ -34,11 +34,18 @@ if (HAS_DOM) (() => {
     }
   }
 
+  const glCanvas = document.getElementById('gl');
+  const use3D = !params.get('classic') && typeof Render3D !== 'undefined' && Render3D.init(glCanvas);
+  Render.worldless = use3D;
+  if (!use3D) glCanvas.style.display = 'none';
+
   function resize() {
     const pad = 30;
     const s = Math.min((innerWidth - pad) / CONFIG.canvas.w, (innerHeight - pad - 24) / CONFIG.canvas.h);
-    canvas.style.width = (CONFIG.canvas.w * s) + 'px';
-    canvas.style.height = (CONFIG.canvas.h * s) + 'px';
+    for (const cv of [canvas, glCanvas]) {
+      cv.style.width = (CONFIG.canvas.w * s) + 'px';
+      cv.style.height = (CONFIG.canvas.h * s) + 'px';
+    }
   }
   window.addEventListener('resize', resize);
   resize();
@@ -93,6 +100,7 @@ if (HAS_DOM) (() => {
       menuStep();
       Effects.update(dt);
       AudioSys.update(dt);
+      if (use3D && app.state === 'title') Render3D.render(app.attract, dt);
       if (app.state === 'title') Render.title(ctx, app);
       else if (app.state === 'select') Render.select(ctx, app);
       return;
@@ -113,9 +121,21 @@ if (HAS_DOM) (() => {
     }
     Effects.update(dt);
     AudioSys.update(dt);
+    if (use3D) Render3D.render(game, dt);
     Render.draw(ctx, game);
   }
   BARDOWN.tick = tick;
+  // composite both canvases for automated screenshots
+  BARDOWN.capture = (q) => {
+    const t = document.createElement('canvas');
+    t.width = CONFIG.canvas.w; t.height = CONFIG.canvas.h;
+    const c = t.getContext('2d');
+    c.fillStyle = '#0b0d12';
+    c.fillRect(0, 0, t.width, t.height);
+    if (use3D) c.drawImage(glCanvas, 0, 0, t.width, t.height);
+    c.drawImage(canvas, 0, 0);
+    return t.toDataURL('image/jpeg', q || 0.82).slice(23);
+  };
 
   let last = performance.now(), lastFrameAt = 0;
   function frame(now) {

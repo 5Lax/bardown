@@ -7,15 +7,18 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥍</text></svg>">
 <style>
   html,body{margin:0;height:100%;background:#0b0d12;color:#dfe6ee;font-family:Arial,Helvetica,sans-serif;overflow:hidden}
-  #wrap{display:flex;align-items:center;justify-content:center;height:100%}
-  canvas{background:#11141b;box-shadow:0 0 40px #000a;border-radius:6px}
+  #wrap{position:relative;display:flex;align-items:center;justify-content:center;height:100%}
+  #wrap canvas{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:6px}
+  #gl{background:#0b0d12;box-shadow:0 0 40px #000a}
+  #game{background:transparent}
   #hint{position:fixed;left:0;right:0;bottom:6px;text-align:center;font-size:12px;color:#7e8a99;user-select:none}
   #hint b{color:#cdd7e2}
 </style>
 </head>
 <body>
-<div id="wrap"><canvas id="game" width="1280" height="720"></canvas></div>
-<div id="hint"><b>WASD</b> run &middot; <b>mouse</b> aim &middot; <b>SPACE</b> pass / switch &middot; <b>J / L-click</b> hold to shoot &middot; <b>K / R-click</b> check &middot; <b>SHIFT</b> turbo &middot; <b>G</b> goalie &middot; <b>P</b> pause &middot; <b>M</b> mute</div>
+<div id="wrap"><canvas id="gl" width="1280" height="720"></canvas><canvas id="game" width="1280" height="720"></canvas></div>
+<div id="hint"><b>WASD</b> run &middot; <b>mouse</b> aim &middot; <b>SPACE</b> pass / switch &middot; <b>J / L-click</b> hold to shoot &middot; <b>K / R-click</b> check &middot; <b>SHIFT</b> turbo &middot; <b>G</b> goalie &middot; <b>P</b> pause &middot; <b>M</b> mute &middot; <b>?classic=1</b> for 2D</div>
+<script src="vendor/three.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/audio.js"></script>
@@ -25,6 +28,7 @@
 <script src="js/ai.js"></script>
 <script src="js/game.js"></script>
 <script src="js/render.js"></script>
+<script src="js/render3d.js"></script>
 <script src="js/debug.js"></script>
 <script src="js/main.js"></script>
 </body>

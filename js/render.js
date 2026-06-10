@@ -1,5 +1,7 @@
 // All drawing. Render NEVER calls game.rng (would desync the deterministic sim).
+// worldless=true → 3D renderer owns the world; this canvas draws UI/popups/menus only.
 const Render = {
+  worldless: false,
   rr(ctx, x, y, w, h, r) {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -12,20 +14,24 @@ const Render = {
 
   draw(ctx, game) {
     const C = CONFIG.canvas;
-    ctx.fillStyle = '#11141b';
-    ctx.fillRect(0, 0, C.w, C.h);
-    ctx.save();
-    const z = 1 + Effects.zoom;
-    ctx.translate(C.w / 2, C.h / 2);
-    ctx.scale(z, z);
-    ctx.translate(-C.w / 2 + Effects.shakeX, -C.h / 2 + Effects.shakeY);
-    this.rink(ctx, game);
-    this.trails(ctx);
-    for (const p of game.players) if (p !== game.ball.carrier) this.player(ctx, game, p);
-    if (game.ball.carrier) this.player(ctx, game, game.ball.carrier);
-    this.ballDraw(ctx, game);
-    this.particles(ctx);
-    ctx.restore();
+    if (this.worldless) {
+      ctx.clearRect(0, 0, C.w, C.h);
+    } else {
+      ctx.fillStyle = '#11141b';
+      ctx.fillRect(0, 0, C.w, C.h);
+      ctx.save();
+      const z = 1 + Effects.zoom;
+      ctx.translate(C.w / 2, C.h / 2);
+      ctx.scale(z, z);
+      ctx.translate(-C.w / 2 + Effects.shakeX, -C.h / 2 + Effects.shakeY);
+      this.rink(ctx, game);
+      this.trails(ctx);
+      for (const p of game.players) if (p !== game.ball.carrier) this.player(ctx, game, p);
+      if (game.ball.carrier) this.player(ctx, game, game.ball.carrier);
+      this.ballDraw(ctx, game);
+      this.particles(ctx);
+      ctx.restore();
+    }
     this.hud(ctx, game);
     this.popups(ctx);
     if (Effects.flashA > 0) {
@@ -455,7 +461,7 @@ const Render = {
   title(ctx, app) {
     const C = CONFIG.canvas, cx = C.w / 2;
     this.draw(ctx, app.attract);
-    ctx.fillStyle = 'rgba(8,10,14,0.8)';
+    ctx.fillStyle = this.worldless ? 'rgba(8,10,14,0.62)' : 'rgba(8,10,14,0.8)';
     ctx.fillRect(0, 0, C.w, C.h);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';

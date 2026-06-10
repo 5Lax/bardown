@@ -1,6 +1,6 @@
 # BARDOWN — Arcade Box Lacrosse
 
-NFL Blitz meets box lacrosse. 5v5 plus goalies, 30-second shot clock, hit anyone anytime, ON FIRE mode, desperation comebacks, dive shots, and goals in off the iron. No engine, no assets — vanilla JS + Canvas, all sound synthesized in Web Audio.
+NFL Blitz meets box lacrosse. 5v5 plus goalies, 30-second shot clock, hit anyone anytime, ON FIRE mode, desperation comebacks, dive shots, and goals in off the iron. Low-poly 3D arena with procedurally-built players (Three.js), zero art assets, all sound synthesized in Web Audio. Add `?classic=1` for the original 2D view.
 
 **▶ Play: https://5lax.github.io/bardown/**
 

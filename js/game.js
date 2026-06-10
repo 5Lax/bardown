@@ -368,8 +368,9 @@ class Game {
     const a = p.lastAim;
     if (!p.controlled || !a) return null;
     if (a.mouse && Input.enabled) {
-      const ty = clamp(Input.mouse.y, cy - 52, cy + 52);
-      const depth = Math.max(0, (net.x - Input.mouse.x) * net.f);
+      const m = Input.mouseRink();
+      const ty = clamp(m.y, cy - 52, cy + 52);
+      const depth = Math.max(0, (net.x - m.x) * net.f);
       return { ty, tz: clamp(6 + depth * 1.1, 4, 58) };
     }
     if (Math.hypot(a.x, a.y) > 0.01) {

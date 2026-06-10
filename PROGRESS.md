@@ -39,5 +39,11 @@ All 5 phases complete.
 - **Local:** double-click `PLAY.bat`, or open `index.html` directly, or `node tools/serve.js` → http://localhost:8347
 - `?test=1&seed=N` = CPU autotest mode. Headless CI: `node tools/headless-test.js batch 6` → RESULT: PASS, zero invariant violations.
 
+## 3D renderer — "real graphics, real people" (2026-06-10)
+**Built:** WebGL view layer (`js/render3d.js`, Three.js r147 vendored) targeting the NFL Blitz look: procedural low-poly humanoid players (numbered jerseys via canvas textures, team-shell helmets w/ cages, lacrosse sticks with loop heads), full animation set (run cycle w/ lean, cradle rock, charge windup + release whip, cross-check thrust, Blitz launch ragdolls with splayed limbs, prone dives, goalie crouch + spread-on-shot), 3D arena (striped turf w/ painted lines/creases/logo, kickplate boards + glass + stanchions, real net frames with crossbar at the exact sim height, 4-tier bobbing crowd on concrete terraces, fog), broadcast follow camera with shake/FOV-punch, 3D aim reticle on the goal mouth + pass-target marker, goal confetti and turbo trails mapped from the existing Effects system.
+**Architecture:** the 2D sim is untouched — render3d maps rink px coords to world space; the old 2D renderer still draws every HUD/popup/menu on a transparent overlay (`Render.worldless`), and remains fully playable via `?classic=1`. Mouse aim raycasts through the camera to the floor plane so stick-aim math is identical in both views.
+**Iteration:** 3 screenshot rounds — fixed drone-high camera → broadcast angle, jersey numbers on wrong box faces (rigs face +X), floating crowd → terraces, dark helmet blobs → team shells, +18% player scale.
+**Tests:** headless batch PASS (sim untouched), 0 console errors, 2.06 ms/frame full tick (sim+render), raycast aim verified, goal/title/action frames captured (tools/shot-3d-*.jpg).
+
 ## Post-ship fix (2026-06-10)
 Main loop gained a setInterval watchdog: embedded webviews / occluded windows can suppress requestAnimationFrame entirely, which left the canvas frozen black (this is what made the in-app preview panel look dead). If rAF goes stale >250 ms, a 30 Hz timer drives the same tick(). Verified: game clock now advances in a fully hidden preview window.

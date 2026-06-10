@@ -4,7 +4,8 @@ NFL Blitz (1997) meets box lacrosse. NOT a simulation — over-the-top arcade: e
 
 ## Tech decisions
 
-- **Vanilla JS + HTML5 Canvas 2D, classic script tags (no modules, no build step).** Chosen over Phaser: placeholder-shape rendering doesn't need a sprite engine, and keeping game logic DOM-free lets the whole sim run headlessly in Node for automated playtests. Open `index.html` directly (file:// works) or serve statically.
+- **Vanilla JS, classic script tags (no modules, no build step).** Game logic is DOM-free so the whole sim runs headlessly in Node for automated playtests. Open `index.html` directly (file:// works) or serve statically.
+- **Two renderers, one sim.** Default view is WebGL (`js/render3d.js`, Three.js r147 vendored in `vendor/` — last UMD build, required for classic scripts): procedural low-poly NFL-Blitz-style player rigs, 3D arena, broadcast follow camera. `?classic=1` falls back to the original 2D Canvas renderer. The 2D `Render` still draws ALL UI (HUD/popups/menus) on a transparent overlay canvas in both modes (`Render.worldless`). The sim never depends on either renderer — render3d maps rink coords (x,y px + z height) to world (x-640, z, y-415); rigs face +X, yaw = -facing. Mouse aim in 3D raycasts to the floor plane (`Input.mouseRink()`). Renderers must never call `game.rng`.
 - All game logic is deterministic via seeded RNG (`game.rng`); `Math.random()` is allowed for cosmetics only (particles, popup variety).
 - Fixed timestep: physics at 120 Hz, render on rAF. `game.update(dt)` is pure w.r.t. DOM — never touch document/window/audio inside game logic without a `HAS_DOM`-style guard.
 - Every gameplay number lives in `js/config.js` (CONFIG). No magic numbers in logic files — Phase 5 tuning happens in one place.

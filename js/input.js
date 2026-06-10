@@ -39,6 +39,9 @@ const Input = {
   // call once per render frame, before physics steps
   update() {
     if (!HAS_DOM) return;
+    // in 3D mode the mouse aims through the camera: raycast to rink coords
+    this.mouse.rink = (typeof Render3D !== 'undefined' && Render3D.active)
+      ? Render3D.mouseToRink(this.mouse.x, this.mouse.y) : null;
     this.pad = null;
     if (this.padIndex !== null && navigator.getGamepads) {
       const p = navigator.getGamepads()[this.padIndex];
@@ -65,12 +68,19 @@ const Input = {
     return l > 1 ? { x: x / l, y: y / l } : { x, y };
   },
 
+  // mouse position in rink coordinates (3D: floor raycast; 2D: canvas coords)
+  mouseRink() {
+    return this.mouse.rink || { x: this.mouse.x, y: this.mouse.y };
+  },
+
   // aim priority: right stick > recent mouse > arrows > null (auto-aim)
   aimFor(p) {
     const sx = this.axis(2), sy = this.axis(3);
     if (Math.hypot(sx, sy) > 0.3) return { x: sx, y: sy, mouse: false };
-    if (performance.now() - this.mouse.lastMove < 2500)
-      return { x: this.mouse.x - p.pos.x, y: this.mouse.y - p.pos.y, mouse: true };
+    if (performance.now() - this.mouse.lastMove < 2500) {
+      const m = this.mouseRink();
+      return { x: m.x - p.pos.x, y: m.y - p.pos.y, mouse: true };
+    }
     const ax = (this.keys.ArrowRight ? 1 : 0) - (this.keys.ArrowLeft ? 1 : 0);
     const ay = (this.keys.ArrowDown ? 1 : 0) - (this.keys.ArrowUp ? 1 : 0);
     if (ax || ay) return { x: ax, y: ay, mouse: false };
