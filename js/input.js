@@ -75,9 +75,17 @@ const Input = {
     return l > 1 ? { x: x / l, y: y / l } : { x, y };
   },
 
-  // mouse position in rink coordinates (3D: floor raycast; 2D: canvas coords)
+  // mouse position in rink coordinates (3D: floor raycast; 2D: inverse of the fit-scale)
   mouseRink() {
-    return this.mouse.rink || { x: this.mouse.x, y: this.mouse.y };
+    if (this.mouse.rink) return this.mouse.rink;
+    if (typeof Render !== 'undefined' && !Render.worldless && Render.classicScale) {
+      const s = Render.classicScale, C = CONFIG.canvas;
+      return {
+        x: CONFIG.center.x + (this.mouse.x - C.w / 2) / s,
+        y: CONFIG.center.y + (this.mouse.y - (C.h + 110) / 2) / s,
+      };
+    }
+    return { x: this.mouse.x, y: this.mouse.y };
   },
   // mouse projected onto a goal's vertical plane (3D only)
   goalPlane(netIdx) {

@@ -90,5 +90,14 @@ Per user feedback on the Blast view:
 **Organic bodies round 4:** lathed one-piece torso profile (hips→waist→chest→shoulder taper), heads set slightly forward, athletic hunch baseline, smoother spheres.
 **Verification:** feature-by-feature browser evals (outlet escape, cut, difficulty application, replay engagement + capture, full playoff run to a championship, 2P boot without a pad), headless batches PASS with 0 violations. **Adversarial review fleet** (20 agents over the diff): 16 findings → 2 confirmed after refutation passes — a replay last-frame off-by-one and a THREE.js dispose leak on rematch — both fixed and re-verified.
 
+## Blitz-look wave: big floor, superhero bodies, two-man booth, live ball (2026-06-11)
+Research first (user asked for video comparison; used written/frame analysis): Blitz players were ~8½ ft "superheroes" with "synthol-laden" proportions and theatrical, instant-speed movement.
+- **Floor +20%** (1440×640, same world center so nothing else moved; classic 2D now fit-scales, mouse inverse-mapped). Ball speeds scaled up ~12% to keep flight-time geometry; goalie/AI retuned → 14.4 combined goals, 5/5 sims finish incl. OT.
+- **Blitz movement:** accel 3200→4300 + friction 10.5 = near-instant starts, hard stops, razor cuts. Run cycle amped: stride 1.05 rad, knee drive 1.3, double bounce, 0.2 rad sprint lean, big arm pump.
+- **Blitz bodies:** chest profile +25%, deltoids 5.2, comic forearms (r 2.1→3.2) + big gloves, thicker thighs/shins, bigger head/helmet, overall scale 1.22. They read as bulky cartoons now.
+- **Two-man booth:** play-by-play voice (deep, fast, interrupts himself) + color analyst (different voice, waits his turn, quips ~1.5 s after big calls from a 30-line banter table — goals, tackles, robberies, sin-bin jokes). Analyst lines show as closed-caption subtitles. NOTE: user asked for Rabil/Kessenich — used the duo *dynamic* with original personas instead (real-person likeness).
+- **Live ball:** loose balls have real vertical physics (gravity 920, restitution 0.55, bounce SFX) — fumbles pop and bounce, faceoffs toss the ball up into a scramble, rebounds kick off the pads, wide shots fall and skitter. Pickups: low ball = scoop-off-the-turf animation, high ball = reach-up snag (catchable to z 38); lob catches get the reach too.
+**Tests:** headless 5/5 PASS 0 violations; browser: booth subtitle live, ball bounce observed (vz 185), 0 errors. Frame: tools/shot-blitzlook.jpg.
+
 ## Post-ship fix (2026-06-10)
 Main loop gained a setInterval watchdog: embedded webviews / occluded windows can suppress requestAnimationFrame entirely, which left the canvas frozen black (this is what made the in-app preview panel look dead). If rAF goes stale >250 ms, a 30 Hz timer drives the same tick(). Verified: game clock now advances in a fully hidden preview window.

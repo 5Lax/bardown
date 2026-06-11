@@ -15,6 +15,7 @@ class Player {
     this.hitCd = 0; this.scoopCd = 0; this.knockT = 0; this.diveT = 0; this.benchT = 0;
     this.tackleT = 0; this.tackleCd = 0;
     this.catchTime = -99; this.lastAim = null; this.controlled = false;
+    this.scoopAnim = 0; this.catchAnim = 0;
     this.ai = { decideT: 0, spot: null, cutT: 0, cutting: 0, plan: 'drive', chargeAim: 0, wantCharge: 0.7, holdT: 0 };
     this.resetIntent();
   }
@@ -40,6 +41,8 @@ class Player {
     this.hitCd = Math.max(0, this.hitCd - dt);
     this.scoopCd = Math.max(0, this.scoopCd - dt);
     this.tackleCd = Math.max(0, this.tackleCd - dt);
+    this.scoopAnim = Math.max(0, this.scoopAnim - dt);
+    this.catchAnim = Math.max(0, this.catchAnim - dt);
 
     if (this.state === 'benched') { this.vel.x = this.vel.y = 0; return; }
 
@@ -228,12 +231,17 @@ class Ball {
     this.carrier = null; this.passTo = null; this.passTeam = -1;
     this.shot = null; this.lastTouchTeam = -1; this.lastTouch = null;
     this.lob = false; this.passT = 0; this.lobT = 0.3;
+    this.vz = 0;
   }
   syncPrev() { this.prev.x = this.pos.x; this.prev.y = this.pos.y; }
 
   attach(p) {
+    // how he gathers it: low ball = scoop off the turf, high ball = snag out of the air
+    if (this.state === 'loose') {
+      if (this.z < CONFIG.ballPhys.scoopZ) p.scoopAnim = 0.25; else p.catchAnim = 0.22;
+    } else if (this.state === 'pass' && this.z > 24) p.catchAnim = 0.22;
     this.state = 'carried'; this.carrier = p; this.passTo = null; this.shot = null;
-    this.z = 10; this.vel.x = 0; this.vel.y = 0;
+    this.z = 10; this.vz = 0; this.vel.x = 0; this.vel.y = 0;
     this.lastTouchTeam = p.team; this.lastTouch = p;
     p.catchTime = this.game.time;
     this.game.onPossession(p);
@@ -245,10 +253,11 @@ class Ball {
     goalie.holdT = 0;
     this.game.onPossession(goalie);
   }
-  drop(vx, vy) {
+  drop(vx, vy, vz) {
     this.carrier = null; this.passTo = null; this.shot = null;
     this.state = 'loose';
     this.vel.x = vx; this.vel.y = vy;
+    if (vz !== undefined) this.vz = vz;
   }
   launchPass(from, to, lead, lob) {
     const S = CONFIG.pass;
@@ -289,11 +298,21 @@ class Ball {
         break;
       }
       case 'loose': {
+        // a real india-rubber ball: it drops, bounces, and skitters
+        const BP = CONFIG.ballPhys;
         this.pos.x += this.vel.x * dt;
         this.pos.y += this.vel.y * dt;
         this.vel.x = damp(this.vel.x, 0.9, dt);
         this.vel.y = damp(this.vel.y, 0.9, dt);
-        this.z = damp(this.z, 8, dt);
+        this.z += this.vz * dt;
+        this.vz -= BP.grav * dt;
+        if (this.z <= 0) {
+          this.z = 0;
+          if (this.vz < -BP.deadVz) {
+            this.vz = -this.vz * BP.bounce;
+            AudioSys.bounce(Math.min(1, -0 + this.vz / 300));
+          } else this.vz = 0;
+        }
         if (collideBoards(this.pos, this.vel, 7, CONFIG.rink.restitution) > 150) AudioSys.thud(0.5);
         break;
       }
@@ -329,9 +348,9 @@ class Ball {
         s.traveled += s.speed * dt;
         this.z = lerp(s.z0, s.tz, clamp(s.traveled / s.total, 0, 1));
         Effects.trail(this.pos.x, this.pos.y, '#ffb14a', 4);
-        if (s.traveled > s.total + CONFIG.shot.maxRange) { this.state = 'loose'; this.shot = null; this.z = 0; }
+        if (s.traveled > s.total + CONFIG.shot.maxRange) { this.state = 'loose'; this.shot = null; this.vz = -40; }
         if (collideBoards(this.pos, this.vel, 7, CONFIG.rink.restitution) > 0) {
-          this.state = 'loose'; this.shot = null; this.z = Math.min(this.z, 20);
+          this.state = 'loose'; this.shot = null; this.vz = this.z > 18 ? -30 : 60;
         }
         break;
       }

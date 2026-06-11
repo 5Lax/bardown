@@ -22,7 +22,7 @@ const Render3D = {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     this.renderer.setClearColor(0x0b0d12);
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(0x0b0d12, 1250, 2400);
+    this.scene.fog = new THREE.Fog(0x0b0d12, 1500, 2700);
     this.camera = new THREE.PerspectiveCamera(46, CONFIG.canvas.w / CONFIG.canvas.h, 10, 4000);
     this.camera.position.set(-500, 290, 0);
     this.camTarget = new THREE.Vector3(0, 12, 0);
@@ -253,9 +253,9 @@ const Render3D = {
   },
 
   floorTexture(game) {
-    const FW = 1480, FH = 820;
+    const FW = CONFIG.rink.w + 280, FH = CONFIG.rink.h + 270;
     const c = document.createElement('canvas');
-    c.width = 2048; c.height = 1136;
+    c.width = 2048; c.height = Math.round(2048 * FH / FW);
     const x = c.getContext('2d');
     const sx = c.width / FW, sy = c.height / FH;
     const X = (wx) => (wx - 640 + FW / 2) * sx, Y = (wy) => (wy - 415 + FH / 2) * sy;
@@ -397,83 +397,84 @@ const Render3D = {
     const glove = new THREE.MeshLambertMaterial({ color: 0x222630 });
 
     // legs: hip pivot → thigh → knee pivot → shin → shoe (capsules = rounded muscle)
+    // Blitz proportions: 8½-foot superheroes — huge chest, cartoon forearms, thick legs
     const mkLeg = (side) => {
       const hip = new THREE.Group();
-      hip.position.set(0, 24, side * 5.5 * wide);
-      const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(3.4 * padR, 6.5, 3, 9), goalie ? trim : dark);
+      hip.position.set(0, 24, side * 6.2 * wide);
+      const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(4.4 * padR, 6.5, 3, 9), goalie ? trim : dark);
       thigh.position.y = -6;
       hip.add(thigh);
       const knee = new THREE.Group();
       knee.position.y = -13;
       hip.add(knee);
-      const shin = new THREE.Mesh(new THREE.CapsuleGeometry(2.5 * padR, 6.5, 3, 9), goalie ? trim : new THREE.MeshLambertMaterial({ color: td.trim }));
+      const shin = new THREE.Mesh(new THREE.CapsuleGeometry(3.1 * padR, 6.5, 3, 9), goalie ? trim : new THREE.MeshLambertMaterial({ color: td.trim }));
       shin.position.y = -5.8;
       knee.add(shin);
-      const foot = new THREE.Mesh(new THREE.CapsuleGeometry(2.3, 4.2, 2, 8), shoe);
+      const foot = new THREE.Mesh(new THREE.CapsuleGeometry(2.7, 4.8, 2, 8), shoe);
       foot.rotation.z = Math.PI / 2;
-      foot.position.set(2.2, -11.8, 0);
+      foot.position.set(2.5, -11.8, 0);
       knee.add(foot);
       g.add(hip);
       return { hip, knee };
     };
     const legL = mkLeg(-1), legR = mkLeg(1);
-    const shorts = new THREE.Mesh(new THREE.CylinderGeometry(7.6, 8.3, 9, 12), dark);
+    const shorts = new THREE.Mesh(new THREE.CylinderGeometry(8.8, 9.6, 9, 12), dark);
     shorts.scale.z = 1.3 * wide;
     shorts.position.set(0, 24, 0);
     g.add(shorts);
 
-    // organic torso: one smooth lathed profile — hips, waist pinch, chest, shoulder taper
+    // organic torso: one smooth lathed profile — hips, waist pinch, massive chest, taper
     const profile = [
-      [5.9, 0], [5.3, 4.5], [5.6, 8.5], [6.6, 13], [6.9, 16.5], [6.2, 19.5], [3.4, 21.5],
+      [6.7, 0], [6.0, 4.5], [6.6, 8.5], [8.3, 13], [8.7, 16.5], [7.7, 19.5], [4.3, 21.5],
     ].map(q => new THREE.Vector2(q[0], q[1]));
     const torso = new THREE.Mesh(new THREE.LatheGeometry(profile, 18), jersey);
     torso.scale.z = 1.45 * wide;
     torso.position.set(0, 24.5, 0);
     upper.add(torso);
     for (const s of [-1, 1]) {
-      const delt = new THREE.Mesh(new THREE.SphereGeometry(3.8, 10, 8), plain);
-      delt.position.set(0, 43.5, s * 13.5 * wide);
+      const delt = new THREE.Mesh(new THREE.SphereGeometry(5.2, 10, 8), plain);
+      delt.position.set(0, 43.5, s * 15 * wide);
       upper.add(delt);
     }
     // shoulder roll
-    const pads = new THREE.Mesh(new THREE.CapsuleGeometry(4.3, 15 * wide, 3, 10), plain);
+    const pads = new THREE.Mesh(new THREE.CapsuleGeometry(5.5, 17 * wide, 3, 10), plain);
     pads.rotation.x = Math.PI / 2;
-    pads.position.set(0, 44.5, 0);
+    pads.position.set(0, 45, 0);
     upper.add(pads);
-    const neck = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.8, 3.5, 8), skin);
-    neck.position.set(0, 47.5, 0);
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(3.0, 3.5, 3.5, 8), skin);
+    neck.position.set(0, 48, 0);
     upper.add(neck);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(5.3, 16, 12), skin);
-    head.position.set(0.7, 52.4, 0);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(6.0, 16, 12), skin);
+    head.position.set(0.7, 53.4, 0);
     upper.add(head);
-    const helmet = new THREE.Mesh(new THREE.SphereGeometry(6.0, 16, 12), plain);
+    const helmet = new THREE.Mesh(new THREE.SphereGeometry(6.9, 16, 12), plain);
     helmet.scale.set(1.04, 0.9, 1.04);
-    helmet.position.set(0.3, 53.6, 0);
+    helmet.position.set(0.3, 54.6, 0);
     upper.add(helmet);
-    const brim = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.5, 8.2), plain);
-    brim.position.set(5.8, 54.2, 0);
+    const brim = new THREE.Mesh(new THREE.BoxGeometry(5.0, 1.8, 9.5), plain);
+    brim.position.set(6.6, 55.4, 0);
     upper.add(brim);
-    const cage = new THREE.Mesh(new THREE.BoxGeometry(2.0, 5.6, 7.6),
+    const cage = new THREE.Mesh(new THREE.BoxGeometry(2.2, 6.4, 8.8),
       new THREE.MeshLambertMaterial({ color: 0x16181d }));
-    cage.position.set(5.6, 50.8, 0);
+    cage.position.set(6.4, 51.4, 0);
     upper.add(cage);
 
-    // arms: shoulder pivot → sleeve → elbow pivot → bare forearm → glove
+    // arms: shoulder pivot → cannonball sleeve → elbow pivot → comic forearm → big glove
     const mkArm = (side) => {
       const sh = new THREE.Group();
-      sh.position.set(0, 43, side * (13.5 * wide));
-      const up = new THREE.Mesh(new THREE.CapsuleGeometry(2.8, 5.5, 3, 9), plain);
+      sh.position.set(0, 43, side * (15 * wide));
+      const up = new THREE.Mesh(new THREE.CapsuleGeometry(3.8, 5.5, 3, 9), plain);
       up.position.y = -4.8;
       sh.add(up);
       const el = new THREE.Group();
-      el.position.y = -10;
+      el.position.y = -10.5;
       sh.add(el);
-      const fore = new THREE.Mesh(new THREE.CapsuleGeometry(2.1, 5, 3, 9), skin);
-      fore.position.y = -4.2;
+      const fore = new THREE.Mesh(new THREE.CapsuleGeometry(3.2, 5, 3, 9), skin);
+      fore.position.y = -4.4;
       el.add(fore);
-      const hand = new THREE.Mesh(new THREE.SphereGeometry(2.9, 9, 8), glove);
+      const hand = new THREE.Mesh(new THREE.SphereGeometry(3.8, 9, 8), glove);
       hand.scale.y = 1.15;
-      hand.position.y = -9.8;
+      hand.position.y = -10.4;
       el.add(hand);
       upper.add(sh);
       return { sh, el };
@@ -510,7 +511,7 @@ const Render3D = {
     tag.visible = false;
     this.scene.add(tag);
 
-    g.scale.setScalar(goalie ? 1.1 : 1.16);
+    g.scale.setScalar(goalie ? 1.15 : 1.22);
     this.scene.add(g);
     return { g, upper, legL, legR, armL, armR, stick, shadow, marker, tag, jersey,
       phase: Math.random() * 6, launch: 0, wasDown: false, releaseT: 0, prevCharging: false, stickTip: new THREE.Vector3() };
@@ -627,22 +628,22 @@ const Render3D = {
     }
 
     g.rotation.set(0, -p.facing, 0);
-    rig.phase += spd * dt * 0.055;
-    const runK = clamp(spd / 250, 0, 1);
+    // Blitz gait: huge strides, fast cycle, big bounce, hard sprint lean
+    rig.phase += spd * dt * 0.072;
+    const runK = clamp(spd / 280, 0, 1);
     const ph = rig.phase;
-    g.position.y = Math.abs(Math.sin(ph)) * 1.7 * runK + p.jumpZ;
-    g.rotateZ(-runK * 0.12 * (p.isGoalie ? 0.3 : 1));
-    // legs: thigh swing + knee flexion on the recovery stride; tuck in the air
+    g.position.y = Math.abs(Math.sin(ph)) * 2.8 * runK + p.jumpZ;
+    g.rotateZ(-runK * 0.2 * (p.isGoalie ? 0.3 : 1));
     if (p.jumpZ > 4) {
       rig.legL.hip.rotation.x = -0.35;
       rig.legR.hip.rotation.x = -0.35;
       rig.legL.knee.rotation.x = 1.2;
       rig.legR.knee.rotation.x = 1.2;
     } else {
-      rig.legL.hip.rotation.x = Math.sin(ph) * 0.78 * runK;
-      rig.legR.hip.rotation.x = -Math.sin(ph) * 0.78 * runK;
-      rig.legL.knee.rotation.x = Math.max(0.08, -Math.sin(ph)) * 1.0 * runK + 0.06;
-      rig.legR.knee.rotation.x = Math.max(0.08, Math.sin(ph)) * 1.0 * runK + 0.06;
+      rig.legL.hip.rotation.x = Math.sin(ph) * 1.05 * runK;
+      rig.legR.hip.rotation.x = -Math.sin(ph) * 1.05 * runK;
+      rig.legL.knee.rotation.x = Math.max(0.08, -Math.sin(ph)) * 1.3 * runK + 0.06;
+      rig.legR.knee.rotation.x = Math.max(0.08, Math.sin(ph)) * 1.3 * runK + 0.06;
     }
 
     const hasBall = p.__hasBall !== undefined ? p.__hasBall : this.game.ball.carrier === p;
@@ -705,6 +706,22 @@ const Render3D = {
       rig.armR.sh.rotation.set(-1.4, 0, -0.2); rig.armR.el.rotation.x = 0.15;
       rig.stick.position.set(17, 31, -4);
       rig.stick.rotation.set(0, 0.9 * (1 - k), -0.3);
+    } else if (hasBall && (p.scoopAnim > 0 || p.catchAnim > 0)) {
+      // gather animations: scoop sweeps the turf, snag reaches up
+      if (p.scoopAnim > 0) {
+        const k = p.scoopAnim / 0.25;
+        rig.upper.rotation.z = -0.5 * k;
+        rig.armL.sh.rotation.set(-0.9, 0, 0.4); rig.armL.el.rotation.x = 0.9;
+        rig.armR.sh.rotation.set(-0.7, 0, -0.3); rig.armR.el.rotation.x = 0.4;
+        rig.stick.position.set(15, 8 + (1 - k) * 18, 4);
+        rig.stick.rotation.set(0, -0.2, -0.6 * k);
+      } else {
+        const k = p.catchAnim / 0.22;
+        rig.armL.sh.rotation.set(-1.6 * k - 0.4, 0, 0.5); rig.armL.el.rotation.x = 0.5;
+        rig.armR.sh.rotation.set(0.3, 0, -0.3); rig.armR.el.rotation.x = 0.6;
+        rig.stick.position.set(7, 30 + 10 * k, 6);
+        rig.stick.rotation.set(0, -0.4, 1.0 + 0.5 * k);
+      }
     } else if (hasBall) {
       // proper box cradle: stick up by the helmet, head rocking, top hand high
       const rock = Math.sin(t * 7) * 0.16;
@@ -715,9 +732,9 @@ const Render3D = {
       rig.stick.rotation.set(rock * 0.6, -0.45, 1.05 + rock * 0.3);
     } else {
       // natural run: torso counter-rotates the stride, arms pump with bent elbows
-      rig.upper.rotation.y = -Math.sin(ph) * 0.16 * runK;
-      rig.armL.sh.rotation.x = Math.sin(ph) * 0.55 * runK + 0.18;
-      rig.armR.sh.rotation.x = -Math.sin(ph) * 0.55 * runK + 0.18;
+      rig.upper.rotation.y = -Math.sin(ph) * 0.24 * runK;
+      rig.armL.sh.rotation.x = Math.sin(ph) * 0.85 * runK + 0.18;
+      rig.armR.sh.rotation.x = -Math.sin(ph) * 0.85 * runK + 0.18;
       rig.armL.el.rotation.x = 0.8; rig.armR.el.rotation.x = 0.8;
       rig.armL.sh.rotation.z = 0.16; rig.armR.sh.rotation.z = -0.16;
       rig.stick.position.set(10, 24, 5);
@@ -824,12 +841,14 @@ const Render3D = {
   },
 
   // Blast-style end camera: parked behind the human end, looking up-floor (+x).
+  // All extents derive from CONFIG.rink so floor-size changes stay one-line.
   syncCamera(game, dt) {
     const b = game.ball;
-    const bx = clamp(b.pos.x - 640, -600, 600);
-    const bz = clamp(b.pos.y - 415, -275, 275);
-    const want = new THREE.Vector3(clamp(bx - 345, -705, 95), 292, bz * 0.3);
-    const wantT = new THREE.Vector3(clamp(bx + 160, -540, 575), 10, clamp(bz * 0.62, -205, 205));
+    const rw = CONFIG.rink.w / 2, rh = CONFIG.rink.h / 2;
+    const bx = clamp(b.pos.x - 640, -rw, rw);
+    const bz = clamp(b.pos.y - 415, -rh, rh);
+    const want = new THREE.Vector3(clamp(bx - 385, -(rw + 110), rw - 510), 318, bz * 0.28);
+    const wantT = new THREE.Vector3(clamp(bx + 165, -(rw - 60), rw - 25), 10, clamp(bz * 0.62, -(rh - 70), rh - 70));
     const k = Math.min(1, dt * 3.4);
     this.camPos.lerp(want, k);
     this.camTarget.lerp(wantT, k);
@@ -877,6 +896,7 @@ const Render3D = {
         charging: p.charging, charge: p.charge, hitCd: p.hitCd, tackleT: p.tackleT,
         turboActive: false, controlled: false,
         savePose: p.savePose || 0, saveSide: p.saveSide || 1,
+        scoopAnim: p.scoopAnim || 0, catchAnim: p.catchAnim || 0,
         __hasBall: game.ball.carrier === p,
       })),
     };
@@ -905,9 +925,10 @@ const Render3D = {
     this.reticle.visible = false;
     this.passMarker.visible = false;
     // low corner cam behind the net that just got beaten
+    const rw = CONFIG.rink.w / 2;
     const side = game.ball.pos.x > 640 ? 1 : -1;
-    this.camera.position.set(side * 645, 92, 165);
-    this.camera.lookAt(side * 320, 24, -10);
+    this.camera.position.set(side * (rw + 45), 92, 165);
+    this.camera.lookAt(side * (rw - 280), 24, -10);
     this.camera.fov = 50;
     this.camera.updateProjectionMatrix();
     this.renderer.render(this.scene, this.camera);

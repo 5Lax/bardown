@@ -81,15 +81,37 @@ const AudioSys = {
     this.noise(t, 0.10, 0.22 * power, 'lowpass', 380, 160, 1);
     if (power > 1.2) this.noise(t, 0.18, 0.18, 'bandpass', 900, 200, 2); },
   scoop()   { if (!this.ctx || this.muted) return; this.noise(this.t(), 0.05, 0.14, 'bandpass', 900, 1400, 2); },
+  bounce(k) { if (!this.ctx || this.muted) return; this.osc('sine', 240 + k * 120, 140, this.t(), 0.06, 0.07 + k * 0.06); },
   jumpSfx() { if (!this.ctx || this.muted) return; this.noise(this.t(), 0.09, 0.1, 'bandpass', 500, 1500, 2); },
 
-  // gloriously cheesy announcer via speech synthesis — interrupts himself like the real thing
-  say(text) {
+  // two-man booth via speech synthesis: voice 1 = hype play-by-play (interrupts himself
+  // like the real thing), voice 2 = wry color analyst (waits his turn, then quips)
+  voiceA: null, voiceB: null,
+  pickVoices() {
+    if (!HAS_DOM || typeof speechSynthesis === 'undefined') return;
+    try {
+      const vs = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+      if (!vs.length) return;
+      this.voiceA = vs.find(v => /david|mark|daniel|male/i.test(v.name)) || vs[0];
+      this.voiceB = vs.find(v => v !== this.voiceA && /guy|james|rich|george|alex|fred/i.test(v.name))
+        || vs.find(v => v !== this.voiceA) || vs[0];
+    } catch (e) {}
+  },
+  say(text, who) {
     if (this.muted || !HAS_DOM || typeof speechSynthesis === 'undefined') return;
     try {
-      if (speechSynthesis.speaking) speechSynthesis.cancel();
+      if (!this.voiceA) this.pickVoices();
+      if (who === 2) {
+        if (speechSynthesis.speaking) return; // the analyst doesn't talk over the call
+      } else if (speechSynthesis.speaking) speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text.replace(/!+/g, '!').replace(/—/g, ', '));
-      u.rate = 1.25; u.pitch = 0.65; u.volume = 0.9;
+      if (who === 2) {
+        if (this.voiceB) u.voice = this.voiceB;
+        u.rate = 1.12; u.pitch = 1.0; u.volume = 0.85;
+      } else {
+        if (this.voiceA) u.voice = this.voiceA;
+        u.rate = 1.28; u.pitch = 0.62; u.volume = 0.9;
+      }
       speechSynthesis.speak(u);
     } catch (e) {}
   },

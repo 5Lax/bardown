@@ -22,12 +22,30 @@ const ANNOUNCER = {
   ot:        ['OVERTIME — NEXT GOAL WINS!'],
 };
 
+// the color analyst's follow-up lines — fired a beat after the play-by-play call
+const BANTER = {
+  goal:      ['Top shelf, where momma hides the cookies!', 'That goalie is going to feel that one in his dreams.', 'You could hang laundry on that rope.', 'Filthy. Absolutely filthy, partner.'],
+  bardown:   ['That ping is the best sound in sports.', 'Iron and in. The purists are weeping with joy.'],
+  tackle:    ['He is going to need a new spine.', 'Somewhere his mother just gasped.', 'That is a felony in at least nine states.', 'Full extension! Beautiful form on the crime.'],
+  bighit:    ['The boards felt that one.', 'He left his soul at center floor.', 'Clean up on aisle five.'],
+  save:      ['Highway robbery!', 'He had no business saving that.'],
+  bigsave:   ['Call the police, because that was a robbery.', 'The kid is a wall with legs.'],
+  fire:      ['Somebody call the fire marshal.', 'He is cooking with the whole stove now.'],
+  powerplay: ['Off to the sin bin.', 'You cannot just truck the goalie. Well, you can. It is just illegal.'],
+  noGoal:    ['The crease giveth, and the crease taketh away.', 'Great goal. Illegal, but great.'],
+  desperation: ['Down five? Time to throw the kitchen sink. And the dishes.'],
+  shotclock: ['You have thirty seconds for a reason, gentlemen.'],
+  quick:     ['Catch and release! Like a fishing show, but violent.'],
+};
+
 const Effects = {
   popups: [], particles: [], trails: [],
   shake: 0, shakeX: 0, shakeY: 0, flashA: 0, zoom: 0, slowmoT: 0, slowmoScale: 1,
+  boothQ: null, boothSub: null,
 
   reset() { this.popups.length = 0; this.particles.length = 0; this.trails.length = 0;
-    this.shake = 0; this.flashA = 0; this.zoom = 0; this.slowmoT = 0; },
+    this.shake = 0; this.flashA = 0; this.zoom = 0; this.slowmoT = 0;
+    this.boothQ = null; this.boothSub = null; },
 
   popup(text, opts = {}) {
     this.popups.push({
@@ -43,7 +61,13 @@ const Effects = {
     if (!lines) return;
     const line = lines[Math.floor(Math.random() * lines.length)];
     this.popup(line, opts);
-    if (this.VOICED.has(kind)) AudioSys.say(line);
+    if (this.VOICED.has(kind)) {
+      AudioSys.say(line, 1);
+      // queue the analyst's quip a beat later
+      if (BANTER[kind] && Math.random() < 0.7) {
+        this.boothQ = { text: BANTER[kind][Math.floor(Math.random() * BANTER[kind].length)], t: 1.5 };
+      }
+    }
   },
 
   burst(x, y, opts = {}) {
@@ -70,6 +94,18 @@ const Effects = {
   timeScale() { return this.slowmoT > 0 ? this.slowmoScale : 1; },
 
   update(dt) {
+    if (this.boothQ) {
+      this.boothQ.t -= dt;
+      if (this.boothQ.t <= 0) {
+        AudioSys.say(this.boothQ.text, 2);
+        this.boothSub = { text: this.boothQ.text, t: 3.4 };
+        this.boothQ = null;
+      }
+    }
+    if (this.boothSub) {
+      this.boothSub.t -= dt;
+      if (this.boothSub.t <= 0) this.boothSub = null;
+    }
     this.shake = damp(this.shake, 6.5, dt);
     if (this.shake < 0.08) this.shake = 0;
     this.shakeX = (Math.random() * 2 - 1) * this.shake;

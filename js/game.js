@@ -226,7 +226,7 @@ class Game {
   endFaceoff(angle) {
     AudioSys.whistle();
     const sp = this.rng.range(CONFIG.faceoff.popSpeed[0], CONFIG.faceoff.popSpeed[1]);
-    this.ball.drop(Math.cos(angle) * sp, Math.sin(angle) * sp);
+    this.ball.drop(Math.cos(angle) * sp, Math.sin(angle) * sp, this.rng.range(180, 300));
     this.state = 'play';
     this.stateT = 0;
   }
@@ -591,8 +591,8 @@ class Game {
       if (this.rng.chance(Math.min(0.98, fum))) {
         const a2 = Math.atan2(dir.y, dir.x) + this.rng.range(-0.9, 0.9);
         const pop = this.rng.range(H.fumblePop[0], H.fumblePop[1]) * (opts.tackle ? 1.25 : 1);
-        this.ball.drop(Math.cos(a2) * pop, Math.sin(a2) * pop);
-        this.ball.z = 8;
+        this.ball.drop(Math.cos(a2) * pop, Math.sin(a2) * pop, this.rng.range(150, 310));
+        this.ball.z = 10;
         this.ball.syncPrev();
         victim.scoopCd = 0.5;
       }
@@ -668,7 +668,7 @@ class Game {
         const d = dist(p.pos.x, p.pos.y, b.pos.x, b.pos.y);
         if (d < reach && d < bd) { bd = d; best = p; }
       }
-      if (best && b.z < 26) {
+      if (best && b.z < CONFIG.ballPhys.pickupZ) {
         if (best.isGoalie) b.hold(best); else b.attach(best);
         AudioSys.scoop();
       }
@@ -754,7 +754,7 @@ class Game {
       const yc = lerp(b.prev.y, b.pos.y, t);
       const half = CONFIG.net.mouthW / 2;
       if (Math.abs(yc - net.cy) > half + CONFIG.net.postR + 7) {
-        if (b.state === 'shot') { b.state = 'loose'; b.shot = null; b.z = Math.min(b.z, 18); }
+        if (b.state === 'shot') { b.state = 'loose'; b.shot = null; b.vz = -60; }
         continue;
       }
       this.resolveNetArrival(net, yc);
@@ -797,6 +797,7 @@ class Game {
     b.vel.x = Math.cos(a) * sp;
     b.vel.y = Math.sin(a) * sp;
     b.z = Math.min(b.z, CONFIG.bar.hi - 2);
+    b.vz = this.rng.range(40, 150); // pinged balls hop
     AudioSys.post();
     Effects.addShake(3.5);
     Effects.burst(net.x, yc, { n: 8, color: '#e8eef5', spd: 170, life: 0.35 });
@@ -823,7 +824,8 @@ class Game {
       b.syncPrev();
       b.vel.x = Math.cos(a) * sp;
       b.vel.y = Math.sin(a) * sp;
-      b.z = this.rng.range(0, 10);
+      b.z = this.rng.range(2, 12);
+      b.vz = this.rng.range(90, 240); // rebounds kick up off the pads
       b.lastTouch = g; b.lastTouchTeam = g.team;
       g.scoopCd = 0.8;
     }

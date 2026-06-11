@@ -20,10 +20,13 @@ const Render = {
       ctx.fillStyle = '#11141b';
       ctx.fillRect(0, 0, C.w, C.h);
       ctx.save();
-      const z = 1 + Effects.zoom;
-      ctx.translate(C.w / 2, C.h / 2);
+      // the rink is bigger than the canvas now — fit-scale the classic 2D world view
+      const fit = Math.min((C.w - 20) / (CONFIG.rink.w + 60), (C.h - 130) / (CONFIG.rink.h + 40));
+      this.classicScale = fit;
+      const z = (1 + Effects.zoom) * fit;
+      ctx.translate(C.w / 2, (C.h + 110) / 2);
       ctx.scale(z, z);
-      ctx.translate(-C.w / 2 + Effects.shakeX, -C.h / 2 + Effects.shakeY);
+      ctx.translate(-CONFIG.center.x + Effects.shakeX, -CONFIG.center.y + Effects.shakeY);
       this.rink(ctx, game);
       this.trails(ctx);
       for (const p of game.players) if (p !== game.ball.carrier) this.player(ctx, game, p);
@@ -34,6 +37,22 @@ const Render = {
     }
     this.hud(ctx, game);
     this.popups(ctx);
+    // the color analyst's line, closed-caption style
+    if (Effects.boothSub) {
+      const a = Math.min(1, Effects.boothSub.t / 0.5);
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = 'italic 700 19px Georgia,serif';
+      const text = '“' + Effects.boothSub.text + '”';
+      const w = ctx.measureText(text).width + 36;
+      this.rr(ctx, (C.w - w) / 2, C.h - 64, w, 34, 9);
+      ctx.fillStyle = 'rgba(8,10,14,0.7)';
+      ctx.fill();
+      ctx.fillStyle = '#cfd8e4';
+      ctx.fillText(text, C.w / 2, C.h - 47);
+      ctx.restore();
+    }
     if (Effects.flashA > 0) {
       ctx.fillStyle = `rgba(255,255,255,${Effects.flashA.toFixed(3)})`;
       ctx.fillRect(0, 0, C.w, C.h);

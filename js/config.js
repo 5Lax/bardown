@@ -2,7 +2,8 @@
 const CONFIG = {
   canvas: { w: 1280, h: 720 },
 
-  rink: { x: 40, y: 140, w: 1200, h: 550, corner: 110, restitution: 0.72 },
+  // bigger floor, same center (640,415) so world offsets stay valid; classic 2D fit-scales
+  rink: { x: -80, y: 95, w: 1440, h: 640, corner: 125, restitution: 0.72 },
 
   net:   { inset: 110, mouthW: 84, mouthH: 52, depth: 24, postR: 5 },
   // z bands at the goal plane: 0..barLo clean (goalie may block), barLo..barIn = in off the iron
@@ -11,26 +12,28 @@ const CONFIG = {
   crease:{ r: 92 },
 
   player: {
-    r: 15, accel: 3200, frict: 8.2, maxSpeed: 358, // always-turbo: everyone moves at sprint pace
+    // Blitz movement: near-instant acceleration, hard stops, razor cuts — no ice-skating drift
+    r: 15, accel: 4300, frict: 10.5, maxSpeed: 362,
     carrySlow: 0.97, chargeSlow: 0.55,
     turboMult: 1.45, turboAccel: 3650, turboMax: 100, turboDrain: 36, turboRegen: 22, turboMin: 8,
     pickupR: 25, scoopCd: 0.45,
   },
+  ballPhys: { grav: 920, bounce: 0.55, deadVz: 60, pickupZ: 38, scoopZ: 20 },
   jump: { v0: 255, grav: 780, dodgeZ: 10 },
   // double right-click: launch horizontally and pancake whoever you touch. Whiff = you eat floor.
   tackle: { window: 0.35, cd: 1.3, speed: 560, time: 0.5, power: 1.55, selfDown: 0.4 },
   goalie: {
     r: 19, coverW: 52, coverH: 47, bodyH: 34, arcR: 30, maxLateral: 36,
-    reflexSpeed: 238, holdTime: 0.85, roamR: 86, mass: 1.7,
+    reflexSpeed: 228, holdTime: 0.85, roamR: 86, mass: 1.7,
   },
 
   pass: {
-    speed: 950, homing: 10, catchR: 26, lead: 0.55, cone: 0.25,
+    speed: 1060, homing: 10, catchR: 26, lead: 0.55, cone: 0.25,
     quickWindow: 0.28, quickSpeed: 1.3, quickErr: 0.85, interceptR: 12, interceptP: 0.5,
     lobPeak: 62, lobSafeZ: 26, launchGrace: 0.05, // lobs sail over heads; passes can't be picked right at the stick
   },
   shot: {
-    minSpeed: 770, maxSpeed: 1260, chargeTime: 0.5, z0: 12,
+    minSpeed: 850, maxSpeed: 1400, chargeTime: 0.5, z0: 12,
     errMax: 34, errMin: 5, maxRange: 760,
     catchChance: 0.3, reboundSpeed: [300, 560],
     turboMult: 1.1, fireMult: 1.2,
@@ -60,7 +63,7 @@ const CONFIG = {
 
   ai: {
     decide: 0.13, reactBase: 0.10,
-    shootRange: 345, shootQuality: 0.36, forceShotAt: 3.2,
+    shootRange: 350, shootQuality: 0.36, forceShotAt: 3.2,
     passPressure: 70, openDist: 85, cutEvery: [2.5, 6.0], cutTime: 1.0,
     hitRange: 44, hitAggro: 0.28, offBallAggro: 0.12, defGap: 30, chasePair: 2,
     cpuChargeMin: 0.5, cpuChargeMax: 0.95, turboUseAt: 35,
