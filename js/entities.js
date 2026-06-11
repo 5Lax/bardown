@@ -201,8 +201,9 @@ class Player {
 }
 
 class Goalie extends Player {
-  constructor(game, team) { super(game, team, 5, true); this.holdT = 0; this.manual = false; }
+  constructor(game, team) { super(game, team, 5, true); this.holdT = 0; this.manual = false; this.savePose = 0; this.saveSide = 1; }
   update(dt) {
+    this.savePose = Math.max(0, this.savePose - dt);
     super.update(dt);
     if (this.state !== 'play') return;
     // tethered to the crease (even under manual control)
@@ -226,6 +227,7 @@ class Ball {
     this.state = 'loose'; // loose | carried | pass | shot | held | dead
     this.carrier = null; this.passTo = null; this.passTeam = -1;
     this.shot = null; this.lastTouchTeam = -1; this.lastTouch = null;
+    this.lob = false; this.passT = 0; this.lobT = 0.3;
   }
   syncPrev() { this.prev.x = this.pos.x; this.prev.y = this.pos.y; }
 
@@ -248,7 +250,7 @@ class Ball {
     this.state = 'loose';
     this.vel.x = vx; this.vel.y = vy;
   }
-  launchPass(from, to, lead) {
+  launchPass(from, to, lead, lob) {
     const S = CONFIG.pass;
     this.carrier = null; this.state = 'pass';
     this.passTo = to; this.passTeam = from.team;
@@ -256,6 +258,9 @@ class Ball {
     const d = norm(lead.x - this.pos.x, lead.y - this.pos.y);
     this.vel.x = d.x * S.speed; this.vel.y = d.y * S.speed;
     this.z = 12;
+    this.lob = !!lob;
+    this.passT = 0;
+    this.lobT = Math.max(0.25, dist(this.pos.x, this.pos.y, lead.x, lead.y) / S.speed);
   }
   launchShot(shooter, netIdx, ty, tz, speed, special, quick) {
     const net = CONFIG.goals[netIdx];
@@ -297,6 +302,8 @@ class Ball {
         if (!t || (t.state !== 'play' && t.state !== 'diving')) {
           this.state = 'loose'; this.passTo = null; break;
         }
+        this.passT += dt;
+        this.z = this.lob ? 12 + Math.sin(clamp(this.passT / this.lobT, 0, 1) * Math.PI) * CONFIG.pass.lobPeak : 12;
         const dd = dist(this.pos.x, this.pos.y, t.pos.x, t.pos.y);
         const lead = {
           x: t.pos.x + t.vel.x * S.lead * (dd / S.speed),
@@ -309,7 +316,7 @@ class Ball {
         this.pos.x += this.vel.x * dt;
         this.pos.y += this.vel.y * dt;
         collideBoards(this.pos, this.vel, 7, CONFIG.rink.restitution);
-        if (dd < S.catchR) {
+        if (dd < S.catchR && (!this.lob || this.z < 34 || this.passT > this.lobT * 0.85)) {
           this.attach(t);
           AudioSys.catchBall();
         }

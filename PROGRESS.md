@@ -77,5 +77,18 @@ Per user feedback on the Blast view:
 - chargeTime 0.62→0.5 (less windup exposure to checks). CPU rebalance: shootQuality 0.34→0.39, goalie lateral speed knob re-wired (CONFIG.goalie.reflexSpeed had silently died in the always-turbo change — goalies were inheriting runner speed) and set to 262.
 **Results:** simulated human corner-shots from 310-440 px: **13% → 33% conversion** (closer = placement-only). CPU-vs-CPU 24 combined goals, comeback batch from 0-5 still produces 1-4 goal finals. All PASS, 0 violations.
 
+## Feature wave — outlet fix, mayhem, and all six suggestions (2026-06-11)
+**Outlet-camping exploit fixed:** goalie passes are now lobs that arc to z≈74 — interceptions skip while the ball is above 26 or within 0.05 s of launch, and pressured goalies outlet in 0.3 s instead of 0.85 s. Verified by staging a camper 50 px from the goalie: outlet sailed over him to a teammate. Root-cause bonus: CPU teams had been exploiting each other the same way — 30-50 "steals"/game were stolen outlets, which had been inflating scoring; rebalanced (goalie lateral 238, CPU shoot quality 0.36) to ~15-16 combined goals through legitimate offense.
+**After-the-whistle mayhem:** entities (and your inputs) keep running through goal celebrations (now 2.4 s) and quarter breaks (2.2 s) — hits, tackles, and jumps after the whistle, exactly like Blitz. Late-hit penalty heat still applies, so celebration violence carries risk.
+**All six suggestions implemented:**
+1. **E = call a cut** — best off-ball teammate darts to the net (D-pad up on pad).
+2. **Difficulty select** — ROOKIE/ARCADE/INSANE cards after team select; scales the 1P house rules + CPU reaction/aggression. CPU-vs-CPU and 2P unaffected.
+3. **Save anims + instant replay** — goalies lunge toward the side they saved; every goal triggers a 2-s slow-mo behind-the-net replay (view-side ring buffer, letterboxed, blinking REPLAY stamp; the sim never pauses, so post-whistle mayhem continues under it).
+4. **Local 2P** — title-menu mode; P1 keyboard+mouse vs P2 gamepad (Input is source-split); fair fight, no assists for either side.
+5. **Voice announcer** — speechSynthesis reads the big calls (goals, bardowns, tackles, fire, power plays); M mutes it with everything else.
+6. **Playoffs** — 8-team single-elimination bracket; other series sim by team strength; bracket screen between rounds; CHAMPIONS celebration or an early ELIMINATED exit.
+**Organic bodies round 4:** lathed one-piece torso profile (hips→waist→chest→shoulder taper), heads set slightly forward, athletic hunch baseline, smoother spheres.
+**Verification:** feature-by-feature browser evals (outlet escape, cut, difficulty application, replay engagement + capture, full playoff run to a championship, 2P boot without a pad), headless batches PASS with 0 violations. **Adversarial review fleet** (20 agents over the diff): 16 findings → 2 confirmed after refutation passes — a replay last-frame off-by-one and a THREE.js dispose leak on rematch — both fixed and re-verified.
+
 ## Post-ship fix (2026-06-10)
 Main loop gained a setInterval watchdog: embedded webviews / occluded windows can suppress requestAnimationFrame entirely, which left the canvas frozen black (this is what made the in-app preview panel look dead). If rAF goes stale >250 ms, a 30 Hz timer drives the same tick(). Verified: game clock now advances in a fully hidden preview window.

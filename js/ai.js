@@ -213,13 +213,16 @@ const AI = {
     if (ball.state === 'held' && ball.carrier === p) {
       p.holdT += dt;
       p.intent.aim = { x: net.f, y: 0 };
-      if (p.holdT > G.holdTime) {
+      // campers force a fast outlet; the lob (automatic for goalies) sails over them
+      const pressured = this.openness(game, p) < 75;
+      if (p.holdT > (pressured ? 0.3 : G.holdTime)) {
         let best = null, bs = -1e9;
         for (const m of game.teams[p.team]) {
           if (m === p || m.state !== 'play') continue;
+          const dd = dist(p.pos.x, p.pos.y, m.pos.x, m.pos.y);
           const open = AI.openness(game, m);
           const fwd = (m.pos.x - p.pos.x) * net.f;
-          const s = open + fwd * 0.3;
+          const s = open + fwd * 0.35 - (dd < 130 ? 80 : 0);
           if (s > bs) { bs = s; best = m; }
         }
         if (best) game.tryPass(p, best);

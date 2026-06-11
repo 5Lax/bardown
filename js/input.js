@@ -48,8 +48,7 @@ const Input = {
       if (p && p.connected) this.pad = p;
     }
     if (this.pad) {
-      const map = { pass: 0, hit: 1, shoot: 2, fire: 3, goalie: 4, pause: 9, faceB: 0 };
-      for (const [name, btn] of Object.entries({ PadA: 0, PadB: 1, PadX: 2, PadY: 3, PadLB: 4, PadRB: 5, PadStart: 9 })) {
+      for (const [name, btn] of Object.entries({ PadA: 0, PadB: 1, PadX: 2, PadY: 3, PadLB: 4, PadRB: 5, PadStart: 9, PadUp: 12 })) {
         const down = this.pad.buttons[btn] && this.pad.buttons[btn].pressed;
         if (down && !this.padPrev[name]) this.press[name] = true;
         this.padPrev[name] = down;
@@ -60,15 +59,17 @@ const Input = {
   axis(n) { return this.pad && Math.abs(this.pad.axes[n] || 0) > 0.22 ? this.pad.axes[n] : 0; },
   padBtn(n) { return !!(this.pad && this.pad.buttons[n] && this.pad.buttons[n].pressed); },
 
-  move() {
+  // source: 'all' (1P merges everything) | 'kbm' (P1 in 2P) | 'pad' (P2 in 2P)
+  move(source) {
+    const kb = source !== 'pad', pd = source !== 'kbm';
     let x, y;
     if (typeof Render3D !== 'undefined' && Render3D.active) {
-      // end camera looks up-floor (+x): W = at the opposing net, A/D strafe across
-      x = (this.keys.KeyW ? 1 : 0) - (this.keys.KeyS ? 1 : 0) - this.axis(1);
-      y = (this.keys.KeyD ? 1 : 0) - (this.keys.KeyA ? 1 : 0) + this.axis(0);
+      // end camera looks up-floor (+x): W / stick-up = at the far net, A/D strafe across
+      x = (kb ? (this.keys.KeyW ? 1 : 0) - (this.keys.KeyS ? 1 : 0) : 0) - (pd ? this.axis(1) : 0);
+      y = (kb ? (this.keys.KeyD ? 1 : 0) - (this.keys.KeyA ? 1 : 0) : 0) + (pd ? this.axis(0) : 0);
     } else {
-      x = (this.keys.KeyD ? 1 : 0) - (this.keys.KeyA ? 1 : 0) + this.axis(0);
-      y = (this.keys.KeyS ? 1 : 0) - (this.keys.KeyW ? 1 : 0) + this.axis(1);
+      x = (kb ? (this.keys.KeyD ? 1 : 0) - (this.keys.KeyA ? 1 : 0) : 0) + (pd ? this.axis(0) : 0);
+      y = (kb ? (this.keys.KeyS ? 1 : 0) - (this.keys.KeyW ? 1 : 0) : 0) + (pd ? this.axis(1) : 0);
     }
     const l = Math.hypot(x, y);
     return l > 1 ? { x: x / l, y: y / l } : { x, y };
@@ -85,15 +86,22 @@ const Input = {
   },
 
   // aim priority: right stick > recent mouse > arrows > null (auto-aim)
-  aimFor(p) {
-    const sx = this.axis(2), sy = this.axis(3);
-    if (Math.hypot(sx, sy) > 0.3) return { x: sx, y: sy, mouse: false };
+  aimFor(p, source) {
+    const kb = source !== 'pad', pd = source !== 'kbm';
+    const in3d = typeof Render3D !== 'undefined' && Render3D.active;
+    if (pd) {
+      const sx = this.axis(2), sy = this.axis(3);
+      if (Math.hypot(sx, sy) > 0.3) {
+        return in3d ? { x: -sy, y: sx, mouse: false } : { x: sx, y: sy, mouse: false };
+      }
+    }
+    if (!kb) return null;
     if (performance.now() - this.mouse.lastMove < 2500) {
       const m = this.mouseRink();
       return { x: m.x - p.pos.x, y: m.y - p.pos.y, mouse: true };
     }
     let ax, ay;
-    if (typeof Render3D !== 'undefined' && Render3D.active) {
+    if (in3d) {
       ax = (this.keys.ArrowUp ? 1 : 0) - (this.keys.ArrowDown ? 1 : 0);
       ay = (this.keys.ArrowRight ? 1 : 0) - (this.keys.ArrowLeft ? 1 : 0);
     } else {
@@ -104,19 +112,24 @@ const Input = {
     return null;
   },
 
-  held(action) {
+  held(action, source) {
+    const kb = source !== 'pad', pd = source !== 'kbm';
     switch (action) {
-      case 'shoot': return !!(this.keys.KeyJ || this.mouse.down || this.padBtn(2));
-      case 'turbo': return !!(this.keys.ShiftLeft || this.keys.ShiftRight || this.padBtn(7) || this.padBtn(5));
-      case 'goalie': return !!(this.keys.KeyG || this.padBtn(4));
-      case 'pass': return !!(this.keys.Space || this.padBtn(0));
+      case 'shoot': return !!((kb && (this.keys.KeyJ || this.mouse.down)) || (pd && this.padBtn(2)));
+      case 'turbo': return !!((kb && (this.keys.ShiftLeft || this.keys.ShiftRight)) || (pd && (this.padBtn(7) || this.padBtn(5))));
+      case 'goalie': return !!((kb && this.keys.KeyG) || (pd && this.padBtn(4)));
+      case 'pass': return !!((kb && this.keys.Space) || (pd && this.padBtn(0)));
       default: return false;
     }
   },
-  pressed(action) {
+  pressed(action, source) {
+    const kb = source !== 'pad', pd = source !== 'kbm';
     const eat = (...codes) => {
       let hit = false;
-      for (const c of codes) if (this.press[c]) { this.press[c] = false; hit = true; }
+      for (const c of codes) {
+        if (c.startsWith('Pad') ? !pd : !kb) continue;
+        if (this.press[c]) { this.press[c] = false; hit = true; }
+      }
       return hit;
     };
     switch (action) {
@@ -124,6 +137,7 @@ const Input = {
       case 'jump': return eat('Space', 'PadY');
       case 'shoot': return eat('KeyJ', 'MouseL', 'PadX');
       case 'hit': return eat('KeyK', 'MouseR', 'PadB');
+      case 'cut': return eat('KeyE', 'PadUp');
       case 'pause': return eat('KeyP', 'Escape', 'PadStart');
       case 'mute': return eat('KeyM');
       case 'confirm': return eat('Enter', 'Space', 'PadA');

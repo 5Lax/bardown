@@ -51,6 +51,16 @@ Aim→shot mapping: mouse y on net = placement; mouse depth past goal plane = he
 Special shots while charging: tap SPACE = behind-the-back, tap R-click = between-the-legs; SHIFT+click sprinting near crease = dive shot.
 Camera: Blast-Lacrosse end view — parked behind the human end, floor runs up-screen (+x); `Render3D.syncCamera` owns it.
 
+## Feature-wave notes (2026-06-11)
+
+- **Lob passes**: `Ball.launchPass(..., lob)` arcs z over `pass.lobPeak`; goalie passes always lob (`tryPass`); interceptions skip while `z > lobSafeZ` or within `launchGrace` of launch. This killed the outlet-camping exploit — note it also deflated the steal stat, which had been inflated by CPU self-camping.
+- **Stoppage mayhem**: `stepAction` runs during `goal` and `break` states (no clocks) — after-whistle hits/tackles are intentional.
+- **Difficulty**: `CONFIG.difficulty[ROOKIE|ARCADE|INSANE]` → `game.diff`; gates 1P house rules + CPU reaction/aggression. CPU-vs-CPU and 2P never use assists.
+- **2P local**: Input is source-split — `held/pressed/move/aimFor` take `'kbm'|'pad'|'all'`. P1 = keyboard+mouse, P2 = first gamepad (`game.controlled2`, `applyHumanIntent2`). In 1P, sources merge ('all').
+- **Goal replay**: view-side only — `Render3D.history` ring buffer of snapshots; `renderReplay` re-poses the same rigs from proxy objects (`__hasBall` override in syncRig) behind-the-net at 0.45×. Sim never pauses. Letterbox + REPLAY stamp drawn by `Render.overlays`.
+- **Playoffs**: bracket state machine lives in main.js (`buildBracket`/`advanceBracket`); non-user games sim via strength-weighted coin flip; user is always slot 0 / team 0.
+- **Voice announcer**: `AudioSys.say` (speechSynthesis, guarded) fires for `Effects.VOICED` event kinds only.
+
 ## Debug API & testing protocol (run after EVERY phase)
 
 `window.BARDOWN` (also global in Node): `.install(game)`, `.simulate(seconds)` → `{violations, state}` sync CPU-vs-CPU steps, `.summary()`, `.errors`.

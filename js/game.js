@@ -2,8 +2,9 @@ CONFIG.goals.forEach((g, i) => { g.i = i; });
 
 class Game {
   constructor(opts = {}) {
-    this.mode = opts.mode || 'p1';            // 'p1' (human = team 0) | 'cpu'
+    this.mode = opts.mode || 'p1';            // 'p1' (human = team 0) | 'p2' (pad = team 1) | 'cpu'
     this.humanTeam = 0;
+    this.diff = CONFIG.difficulty[opts.difficulty] || CONFIG.difficulty.ARCADE;
     this.rng = new RNG(opts.seed || 1234567);
     this.homeIdx = opts.home !== undefined ? opts.home : 0;
     this.awayIdx = opts.away !== undefined ? opts.away : 1;
@@ -52,6 +53,7 @@ class Game {
     this.ot = false;
     this.pendingGameOver = false;
     this.controlled = null;
+    this.controlled2 = null;
     this.lastBeep = -1;
     this.faceoffBattle = null;
     this.setupFaceoff();
@@ -76,9 +78,13 @@ class Game {
   }
   aiReaction(team) {
     const lead = clamp(this.score[team] - this.score[1 - team], 0, CONFIG.rubber.maxGoals);
-    return CONFIG.ai.reactBase + (this.rubberEnabled ? lead * CONFIG.rubber.cpuReactPerGoal : 0);
+    let base = CONFIG.ai.reactBase + (this.rubberEnabled ? lead * CONFIG.rubber.cpuReactPerGoal : 0);
+    if (this.mode === 'p1' && team === 1 - this.humanTeam) base = Math.max(0.02, base + this.diff.cpuReact);
+    return base;
   }
-  aiAggro() { return 1; }
+  aiAggro(team) {
+    return (this.mode === 'p1' && team === 1 - this.humanTeam) ? this.diff.cpuAggro : 1;
+  }
   goalieReflex(team, shot) {
     let r = 1;
     if (shot) {
@@ -87,8 +93,8 @@ class Game {
       if (shot.special) r *= sm.desperation ? CONFIG.rubber.despGoalieMult : 0.8;
       // arcade house rules: the CPU goalie freezes on the human's release, then reacts slower
       if (this.mode === 'p1' && shot.team === this.humanTeam) {
-        if (this.time - shot.t0 < CONFIG.assist.goalieDelay) return 0;
-        r *= CONFIG.assist.goalieReflex;
+        if (this.time - shot.t0 < this.diff.goalieDelay) return 0;
+        r *= this.diff.goalieReflex;
       }
     }
     return r;
@@ -151,7 +157,8 @@ class Game {
     this.state = 'faceoff';
     this.stateT = 0;
     this.faceoffBattle = this.faceoffMash ? { mashes: 0, cpu: 0, go: false, done: false } : null;
-    if (this.mode === 'p1') this.setControlled(this.teams[this.humanTeam][0]);
+    if (this.mode !== 'cpu') this.setControlled(this.teams[this.humanTeam][0]);
+    if (this.mode === 'p2') this.setControlled2(this.teams[1 - this.humanTeam][0]);
   }
 
   setControlled(p) {
@@ -176,6 +183,7 @@ class Game {
         }
         break;
       case 'break':
+        this.stepAction(dt); // after-the-whistle violence continues through the banner
         if (this.stateT > CONFIG.clockCfg.breakTime) {
           this.quarter++;
           this.clock = CONFIG.clockCfg.quarterLen;
@@ -195,9 +203,16 @@ class Game {
     const fb = this.faceoffBattle;
     if (this.stateT < F.readyTime) return;
     if (!fb.go) { fb.go = true; AudioSys.whistle(); }
-    if (this.mode === 'p1' && (Input.pressed('pass') || Input.pressed('shoot') || Input.pressed('jump'))) { fb.mashes++; AudioSys.tick(); }
-    fb.cpuRate = fb.cpuRate || (F.cpuRate + this.rng.range(-F.cpuRateJitter, F.cpuRateJitter) + (this.rubberEnabled ? clamp(this.score[this.mode === 'p1' ? this.humanTeam : 0] - this.score[1], -3, 3) * 0.6 : 0));
-    fb.cpu += fb.cpuRate * dt;
+    if (this.mode !== 'cpu') {
+      const src = this.mode === 'p2' ? 'kbm' : 'all';
+      if (Input.pressed('pass', src) || Input.pressed('shoot', src) || Input.pressed('jump', src)) { fb.mashes++; AudioSys.tick(); }
+    }
+    if (this.mode === 'p2') {
+      if (Input.pressed('pass', 'pad') || Input.pressed('shoot', 'pad') || Input.pressed('jump', 'pad')) { fb.cpu++; AudioSys.tick(); }
+    } else {
+      fb.cpuRate = fb.cpuRate || (F.cpuRate + this.rng.range(-F.cpuRateJitter, F.cpuRateJitter) + (this.rubberEnabled ? clamp(this.score[this.mode === 'p1' ? this.humanTeam : 0] - this.score[1], -3, 3) * 0.6 : 0));
+      fb.cpu += fb.cpuRate * dt;
+    }
     if (this.mode === 'cpu') fb.mashes += (F.cpuRate + this.rng.range(-1, 1)) * dt;
     if (this.stateT >= F.readyTime + F.mashTime) {
       const humanWins = fb.mashes >= fb.cpu;
@@ -236,10 +251,11 @@ class Game {
     this.stepAction(dt);
   }
 
-  // entity movement + ai + human input + resolution (used by play and goal-celebration states)
+  // entity movement + ai + human input + resolution (used by play, goal and break states)
   stepAction(dt) {
     this.updateControl();
     this.applyHumanIntent();
+    if (this.mode === 'p2') { this.updateControl2(); this.applyHumanIntent2(); }
     AI.update(this, dt);
     for (const p of this.players) p.update(dt);
     this.collidePlayers();
@@ -248,10 +264,11 @@ class Game {
   }
 
   updateControl() {
-    if (this.mode !== 'p1') return;
+    if (this.mode === 'cpu') return;
+    const src = this.mode === 'p2' ? 'kbm' : 'all';
     const t = this.humanTeam;
     const goalie = this.goalies[t];
-    if (Input.enabled && Input.held('goalie') && goalie.state === 'play') {
+    if (Input.enabled && Input.held('goalie', src) && goalie.state === 'play') {
       goalie.manual = true;
       this.setControlled(goalie);
       return;
@@ -275,33 +292,92 @@ class Game {
     }
   }
 
+  setControlled2(p) {
+    if (this.controlled2 === p) return;
+    if (this.controlled2) this.controlled2.controlled = false;
+    this.controlled2 = p;
+    if (p) p.controlled = true;
+  }
+
+  updateControl2() {
+    const t = 1 - this.humanTeam;
+    const goalie = this.goalies[t];
+    if (Input.enabled && Input.held('goalie', 'pad') && goalie.state === 'play') {
+      goalie.manual = true;
+      this.setControlled2(goalie);
+      return;
+    }
+    goalie.manual = false;
+    const c = this.ball.carrier;
+    if (c && c.team === t && !c.isGoalie) return this.setControlled2(c);
+    let cur = this.controlled2;
+    if (cur && (cur.isGoalie || cur.state === 'benched')) cur = null;
+    let best = null, bd = 1e9;
+    for (const p of this.teams[t]) {
+      if (p.isGoalie || p.state !== 'play') continue;
+      const d = dist(p.pos.x, p.pos.y, this.ball.pos.x, this.ball.pos.y);
+      if (d < bd) { bd = d; best = p; }
+    }
+    if (!best) return;
+    if (!cur) this.setControlled2(best);
+    else {
+      const cd = dist(cur.pos.x, cur.pos.y, this.ball.pos.x, this.ball.pos.y);
+      if (best !== cur && bd * CONFIG.switchCfg.hysteresis < cd) this.setControlled2(best);
+    }
+  }
+
   applyHumanIntent() {
-    if (this.mode !== 'p1' || !Input.enabled) return;
+    if (this.mode === 'cpu' || !Input.enabled) return;
+    const src = this.mode === 'p2' ? 'kbm' : 'all';
     const p = this.controlled;
     if (!p || p.state !== 'play') return;
     const it = p.intent;
-    const mv = Input.move();
+    const mv = Input.move(src);
     it.mx = mv.x; it.my = mv.y;
-    it.aim = Input.aimFor(p);
-    if (Input.pressed('jump')) it.jump = true;
+    it.aim = Input.aimFor(p, src);
+    if (Input.pressed('jump', src)) it.jump = true;
+    if (Input.pressed('cut', src)) this.callCut(this.humanTeam);
     // LMB: quick tap = pass (switch on D), hold past the threshold = charge a shot
-    const lmb = Input.held('shoot');
-    if (Input.pressed('shoot')) p.lmbAt = this.time;
+    const lmb = Input.held('shoot', src);
+    if (Input.pressed('shoot', src)) p.lmbAt = this.time;
     it.shootHold = lmb && p.hasBall && (this.time - (p.lmbAt !== undefined ? p.lmbAt : -9)) > 0.14;
     if (p.wasLmb && !lmb && (this.time - (p.lmbAt !== undefined ? p.lmbAt : -9)) <= 0.14) {
       if (p.hasBall || (this.ball.state === 'held' && this.ball.carrier === p)) it.pass = true;
       else this.manualSwitch();
     }
     p.wasLmb = lmb;
-    if (Input.pressed('pass')) { // gamepad A keeps a dedicated pass button
+    if (Input.pressed('pass', src)) { // gamepad A keeps a dedicated pass button
       if (p.hasBall || (this.ball.state === 'held' && this.ball.carrier === p)) it.pass = true;
       else this.manualSwitch();
     }
-    if (Input.pressed('hit')) {
+    if (Input.pressed('hit', src)) {
       // double right-click inside the window = flying body tackle
       if (this.time - (this.lastHitPress || -9) < CONFIG.tackle.window) it.tackle = true;
       else it.hit = true;
       this.lastHitPress = this.time;
+    }
+  }
+
+  applyHumanIntent2() {
+    if (!Input.enabled) return;
+    const p = this.controlled2;
+    if (!p || p.state !== 'play') return;
+    const t = 1 - this.humanTeam;
+    const it = p.intent;
+    const mv = Input.move('pad');
+    it.mx = mv.x; it.my = mv.y;
+    it.aim = Input.aimFor(p, 'pad');
+    if (Input.pressed('jump', 'pad')) it.jump = true;
+    if (Input.pressed('cut', 'pad')) this.callCut(t);
+    it.shootHold = Input.held('shoot', 'pad') && p.hasBall;
+    if (Input.pressed('pass', 'pad')) {
+      if (p.hasBall || (this.ball.state === 'held' && this.ball.carrier === p)) it.pass = true;
+      else this.manualSwitch2();
+    }
+    if (Input.pressed('hit', 'pad')) {
+      if (this.time - (this.lastHitPress2 || -9) < CONFIG.tackle.window) it.tackle = true;
+      else it.hit = true;
+      this.lastHitPress2 = this.time;
     }
   }
 
@@ -314,6 +390,17 @@ class Game {
       if (d < bd) { bd = d; best = p; }
     }
     if (best) this.setControlled(best);
+  }
+
+  manualSwitch2() {
+    const t = 1 - this.humanTeam;
+    let best = null, bd = 1e9;
+    for (const p of this.teams[t]) {
+      if (p.isGoalie || p.state !== 'play' || p === this.controlled2) continue;
+      const d = dist(p.pos.x, p.pos.y, this.ball.pos.x, this.ball.pos.y);
+      if (d < bd) { bd = d; best = p; }
+    }
+    if (best) this.setControlled2(best);
   }
 
   collidePlayers() {
@@ -367,7 +454,7 @@ class Game {
     return best || nearest;
   }
 
-  tryPass(p, forced) {
+  tryPass(p, forced, lob) {
     const b = this.ball;
     if (b.carrier !== p) return;
     const target = (forced && forced.state === 'play') ? forced : this.bestPassTarget(p);
@@ -377,10 +464,28 @@ class Game {
       x: target.pos.x + target.vel.x * CONFIG.pass.lead * (d / CONFIG.pass.speed),
       y: target.pos.y + target.vel.y * CONFIG.pass.lead * (d / CONFIG.pass.speed),
     };
-    b.launchPass(p, target, lead);
+    b.launchPass(p, target, lead, lob || p.isGoalie); // goalies always throw over the traffic
     p.scoopCd = 0.25;
     p.charging = false; p.charge = 0;
     AudioSys.pass();
+  }
+
+  // E key: send the best off-ball teammate hard to the net for a give-and-go
+  callCut(team) {
+    if (this.ball.carrier === null || this.ball.carrier.team !== team) return;
+    const net = this.attackNet(team);
+    let best = null, bd = 1e9;
+    for (const m of this.teams[team]) {
+      if (m.isGoalie || m.state !== 'play' || m === this.ball.carrier || m.controlled) continue;
+      if (m.ai.cutting > 0) continue;
+      const d = dist(m.pos.x, m.pos.y, net.x, net.cy);
+      if (d < bd) { bd = d; best = m; }
+    }
+    if (!best) return;
+    best.ai.cutting = CONFIG.ai.cutTime * 1.3;
+    best.ai.cutY = this.rng.range(-45, 45);
+    Effects.burst(best.pos.x, best.pos.y, { n: 6, color: '#7fd0ff', spd: 120, life: 0.4 });
+    AudioSys.tick();
   }
 
   // manual (human) aim mapping — pure, no rng, safe for render previews
@@ -428,7 +533,7 @@ class Game {
     const quick = (this.time - p.catchTime) < CONFIG.pass.quickWindow;
     let { ty, tz } = this.aimTarget(p, netIdx);
     let err = lerp(S.errMax, S.errMin, charge) * mods.err / p.teamDef.sht;
-    if (this.mode === 'p1' && p.team === this.humanTeam) err *= CONFIG.assist.shotErr; // house rules
+    if (this.mode === 'p1' && p.team === this.humanTeam) err *= this.diff.shotErr; // house rules
     if (quick) err *= CONFIG.pass.quickErr;
     if (special) err *= CONFIG.special.errMult * (mods.desperation ? CONFIG.rubber.despErrMult : 1);
     ty += this.rng.range(-err, err);
@@ -523,7 +628,8 @@ class Game {
     this.stats.pps[1 - offender.team]++;
     AudioSys.whistle();
     Effects.announce('powerplay', { size: 52, color: '#ff5555', life: 1.6 });
-    if (this.controlled === offender) this.setControlled(null), this.updateControl();
+    if (this.controlled === offender) { this.setControlled(null); this.updateControl(); }
+    if (this.controlled2 === offender) { this.setControlled2(null); this.updateControl2(); }
   }
   endPowerPlay() {
     const p = this.powerPlay && this.powerPlay.player;
@@ -567,12 +673,14 @@ class Game {
         AudioSys.scoop();
       }
     } else if (b.state === 'pass') {
+      // lobs sail over everyone; nothing gets picked right off the stick either
+      const lobSafe = (b.lob && b.z > CONFIG.pass.lobSafeZ) || b.passT < CONFIG.pass.launchGrace;
       for (const p of this.players) {
         if (p.state !== 'play' || p === b.lastTouch || p.isGoalie) continue;
         const d = dist(p.pos.x, p.pos.y, b.pos.x, b.pos.y);
         if (p.team === b.passTeam) {
-          if (p !== b.passTo && d < CONFIG.pass.catchR * 0.7) { b.attach(p); AudioSys.catchBall(); break; }
-        } else if (this.interceptEnabled && d < CONFIG.pass.interceptR + p.r * 0.4) {
+          if (p !== b.passTo && d < CONFIG.pass.catchR * 0.7 && b.z < 30) { b.attach(p); AudioSys.catchBall(); break; }
+        } else if (this.interceptEnabled && !lobSafe && d < CONFIG.pass.interceptR + p.r * 0.4) {
           if (this.rng.chance(CONFIG.pass.interceptP)) {
             b.attach(p);
             this.stats.steals[p.team]++;
@@ -698,6 +806,8 @@ class Game {
     const b = this.ball;
     this.resetShotClockOnNet(shot);
     this.stats.saves[g.team]++;
+    g.savePose = 0.55;
+    g.saveSide = (b.pos.y - g.pos.y) >= 0 ? 1 : -1;
     const net = this.defendNet(g.team);
     const catches = b.state !== 'shot' || this.rng.chance(CONFIG.shot.catchChance);
     if (catches) {

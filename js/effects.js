@@ -37,10 +37,13 @@ const Effects = {
     });
     if (this.popups.length > 4) this.popups.shift();
   },
+  VOICED: new Set(['goal', 'bardown', 'fire', 'special', 'noGoal', 'powerplay', 'ot', 'desperation', 'tackle', 'bigsave', 'bighit']),
   announce(kind, opts = {}) {
     const lines = ANNOUNCER[kind];
     if (!lines) return;
-    this.popup(lines[Math.floor(Math.random() * lines.length)], opts);
+    const line = lines[Math.floor(Math.random() * lines.length)];
+    this.popup(line, opts);
+    if (this.VOICED.has(kind)) AudioSys.say(line);
   },
 
   burst(x, y, opts = {}) {

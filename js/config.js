@@ -21,12 +21,13 @@ const CONFIG = {
   tackle: { window: 0.35, cd: 1.3, speed: 560, time: 0.5, power: 1.55, selfDown: 0.4 },
   goalie: {
     r: 19, coverW: 52, coverH: 47, bodyH: 34, arcR: 30, maxLateral: 36,
-    reflexSpeed: 262, holdTime: 0.85, roamR: 86, mass: 1.7,
+    reflexSpeed: 238, holdTime: 0.85, roamR: 86, mass: 1.7,
   },
 
   pass: {
     speed: 950, homing: 10, catchR: 26, lead: 0.55, cone: 0.25,
     quickWindow: 0.28, quickSpeed: 1.3, quickErr: 0.85, interceptR: 12, interceptP: 0.5,
+    lobPeak: 62, lobSafeZ: 26, launchGrace: 0.05, // lobs sail over heads; passes can't be picked right at the stick
   },
   shot: {
     minSpeed: 770, maxSpeed: 1260, chargeTime: 0.5, z0: 12,
@@ -41,7 +42,8 @@ const CONFIG = {
     turboPower: 0.4, shake: 7, bigPowerAt: 1.25,
   },
 
-  clockCfg: { quarterLen: 120, quarters: 4, shotClock: 30, beepAt: 5, goalCelebration: 1.2, breakTime: 1.2, faceoffDrop: 0.5 },
+  // celebration/break are long enough for after-the-whistle violence (entities keep running)
+  clockCfg: { quarterLen: 120, quarters: 4, shotClock: 30, beepAt: 5, goalCelebration: 2.4, breakTime: 2.2, faceoffDrop: 0.5 },
 
   faceoff: { readyTime: 0.4, mashTime: 0.9, cpuRate: 7.5, cpuRateJitter: 2.5, popSpeed: [180, 320] },
 
@@ -58,7 +60,7 @@ const CONFIG = {
 
   ai: {
     decide: 0.13, reactBase: 0.10,
-    shootRange: 345, shootQuality: 0.39, forceShotAt: 3.2,
+    shootRange: 345, shootQuality: 0.36, forceShotAt: 3.2,
     passPressure: 70, openDist: 85, cutEvery: [2.5, 6.0], cutTime: 1.0,
     hitRange: 44, hitAggro: 0.28, offBallAggro: 0.12, defGap: 30, chasePair: 2,
     cpuChargeMin: 0.5, cpuChargeMax: 0.95, turboUseAt: 35,
@@ -66,8 +68,14 @@ const CONFIG = {
 
   switchCfg: { hysteresis: 1.25 },
 
-  // house rules vs the human in 1P: goalie freezes briefly on your release, then reacts slower
-  assist: { goalieDelay: 0.24, goalieReflex: 0.72, shotErr: 0.85 },
+  // house rules vs the human in 1P, scaled by difficulty. goalieDelay = freeze after your
+  // release, goalieReflex = his slide speed after that, shotErr = your scatter multiplier,
+  // cpuReact = added CPU decision lag, cpuAggro = CPU hit/tackle appetite.
+  difficulty: {
+    ROOKIE: { goalieDelay: 0.34, goalieReflex: 0.5,  shotErr: 0.7,  cpuReact: 0.08,  cpuAggro: 0.65 },
+    ARCADE: { goalieDelay: 0.24, goalieReflex: 0.72, shotErr: 0.85, cpuReact: 0,     cpuAggro: 1 },
+    INSANE: { goalieDelay: 0.1,  goalieReflex: 0.95, shotErr: 1.0,  cpuReact: -0.03, cpuAggro: 1.3 },
+  },
 
   teams: [
     { city: 'BAYPORT',      name: 'RIPTIDE',       color: '#ff7a1a', color2: '#13283f', trim: '#ffd9b0', spd: 1.02, pwr: 0.98, sht: 1.00 },

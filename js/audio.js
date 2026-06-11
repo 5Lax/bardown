@@ -82,6 +82,17 @@ const AudioSys = {
     if (power > 1.2) this.noise(t, 0.18, 0.18, 'bandpass', 900, 200, 2); },
   scoop()   { if (!this.ctx || this.muted) return; this.noise(this.t(), 0.05, 0.14, 'bandpass', 900, 1400, 2); },
   jumpSfx() { if (!this.ctx || this.muted) return; this.noise(this.t(), 0.09, 0.1, 'bandpass', 500, 1500, 2); },
+
+  // gloriously cheesy announcer via speech synthesis — interrupts himself like the real thing
+  say(text) {
+    if (this.muted || !HAS_DOM || typeof speechSynthesis === 'undefined') return;
+    try {
+      if (speechSynthesis.speaking) speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text.replace(/!+/g, '!').replace(/—/g, ', '));
+      u.rate = 1.25; u.pitch = 0.65; u.volume = 0.9;
+      speechSynthesis.speak(u);
+    } catch (e) {}
+  },
   tick()    { if (!this.ctx || this.muted) return; this.osc('square', 700, 690, this.t(), 0.035, 0.10); },
   riser()   { if (!this.ctx || this.muted) return; const t = this.t();
     this.osc('sawtooth', 180, 880, t, 0.7, 0.12); this.noise(t, 0.7, 0.10, 'bandpass', 400, 3000, 2); },

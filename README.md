@@ -8,6 +8,8 @@ NFL Blitz meets box lacrosse. 5v5 plus goalies, 30-second shot clock, hit anyone
 
 ## Controls
 
+Three modes from the title screen: **Exhibition**, **2 Player** (P2 on a gamepad), and **Playoffs** — an 8-team bracket where you fight to the championship. Three difficulties: Rookie / Arcade / Insane. Every goal gets a behind-the-net instant replay, the announcer literally speaks, and after the whistle you can keep hitting people — it's encouraged.
+
 WASD + mouse + spacebar. That's the game. Everyone is always in turbo.
 
 | Action | Keyboard / Mouse | Gamepad |
@@ -19,6 +21,7 @@ WASD + mouse + spacebar. That's the game. Everyone is always in turbo.
 | Check / hit | Right-click | B |
 | Flying body tackle | Double right-click | B×2 |
 | Jump (hop checks) | SPACE | Y |
+| Call a teammate's cut | E | D-pad up |
 | Goalie takeover | hold G | LB |
 | Pause / Mute | P / M | Start |
 

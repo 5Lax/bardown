@@ -211,7 +211,7 @@ const Render = {
       ctx.fillStyle = '#ff8c1a';
       ctx.beginPath(); ctx.arc(sx, sy, 5.5, 0, Math.PI * 2); ctx.fill();
       // pass target hint for the human carrier
-      if (c.controlled && game.mode === 'p1') {
+      if (c.controlled && game.mode !== 'cpu') {
         const t = game.bestPassTarget(c);
         if (t) {
           ctx.fillStyle = 'rgba(255,255,255,0.85)';
@@ -373,6 +373,15 @@ const Render = {
     const C = CONFIG.canvas, cx = C.w / 2, cy = C.h / 2;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    if (typeof Render3D !== 'undefined' && Render3D.replay) {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, C.w, 52);
+      ctx.fillRect(0, C.h - 52, C.w, 52);
+      ctx.font = '900 24px "Arial Black",Impact,sans-serif';
+      ctx.fillStyle = '#ff3b30';
+      const blink = Math.floor(performance.now() / 400) % 2 === 0;
+      ctx.fillText((blink ? '● ' : '   ') + 'REPLAY', C.w - 130, C.h - 26);
+    }
     if (game.state === 'faceoff') {
       ctx.font = '900 40px "Arial Black",Impact,sans-serif';
       ctx.fillStyle = '#e8eef5';
@@ -449,7 +458,8 @@ const Render = {
       }
       ctx.font = '700 19px Arial';
       ctx.fillStyle = '#9fb0c0';
-      ctx.fillText('ENTER — rematch    ·    ESC — menu', cx, y + 26);
+      const playoffs = typeof BARDOWN !== 'undefined' && BARDOWN.app && BARDOWN.app.mode === 'playoffs';
+      ctx.fillText(playoffs ? 'ENTER — back to the bracket' : 'ENTER — rematch    ·    ESC — menu', cx, y + 26);
     }
     if (game.mode === 'cpu') {
       ctx.font = '700 13px Arial';
@@ -485,21 +495,25 @@ const Render = {
     ctx.font = '900 26px "Arial Black",Impact,sans-serif';
     ctx.fillStyle = '#7fd0ff';
     ctx.fillText('ARCADE  BOX  LACROSSE', cx, 330);
-    ctx.globalAlpha = 0.55 + 0.45 * Math.sin(t * 4);
-    ctx.font = '900 30px "Arial Black",Impact,sans-serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText('PRESS ENTER', cx, 425);
+    const items = ['EXHIBITION', '2 PLAYER  (P2 on gamepad)', 'PLAYOFFS'];
+    ctx.font = '900 26px "Arial Black",Impact,sans-serif';
+    items.forEach((label, i) => {
+      const sel = i === app.titleCursor;
+      ctx.globalAlpha = sel ? 0.7 + 0.3 * Math.sin(t * 5) : 0.55;
+      ctx.fillStyle = sel ? '#ffffff' : '#9fb0c0';
+      ctx.fillText((sel ? '▶  ' : '') + label, cx, 398 + i * 36);
+    });
     ctx.globalAlpha = 1;
     ctx.font = '700 15px Arial';
     ctx.fillStyle = '#9fb0c0';
     const rows = [
       'W attacks the far net · ASD run around it · mouse aims · always turbo',
       'LEFT-CLICK: tap = PASS (switch on D) · hold = power up, release = RIP IT',
-      'RIGHT-CLICK check · DOUBLE R-CLICK flying tackle · SPACE jump (hop checks!)',
+      'RIGHT-CLICK check · DOUBLE R-CLICK flying tackle · SPACE jump · E call a cut',
       'shoot mid-air = JUMP SHOT · charging + tap R-CLICK = showtime',
       'release at full sprint near the crease = DIVE · hold G = goalie',
     ];
-    rows.forEach((s, i) => ctx.fillText(s, cx, 508 + i * 24));
+    rows.forEach((s, i) => ctx.fillText(s, cx, 536 + i * 22));
     ctx.font = '700 13px Arial';
     ctx.fillStyle = 'rgba(159,176,192,0.6)';
     ctx.fillText('30-second shot clock · hit anyone, anytime · 3 unanswered = ON FIRE', cx, 650);
@@ -511,9 +525,13 @@ const Render = {
     ctx.fillRect(0, 0, C.w, C.h);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    if (app.selStage === 2) return this.difficulty(ctx, app);
     ctx.font = '900 44px "Arial Black",Impact,sans-serif';
     ctx.fillStyle = app.selStage === 0 ? '#4fd6ff' : '#ff5050';
-    ctx.fillText(app.selStage === 0 ? 'PICK YOUR SQUAD' : 'PICK THE ENEMY', cx, 70);
+    const headers = app.mode === 'p2'
+      ? ['PLAYER 1 — PICK YOUR SQUAD', 'PLAYER 2 — PICK YOUR SQUAD']
+      : ['PICK YOUR SQUAD', 'PICK THE ENEMY'];
+    ctx.fillText(headers[app.selStage], cx, 70);
     const cw = 268, ch = 168, gap = 18;
     const x0 = cx - (cw * 4 + gap * 3) / 2, y0 = 130;
     for (let i = 0; i < 8; i++) {
@@ -556,6 +574,110 @@ const Render = {
     ctx.font = '700 18px Arial';
     ctx.fillStyle = '#9fb0c0';
     ctx.fillText('WASD / arrows move · ENTER select · ESC back', cx, 680);
+  },
+
+  difficulty(ctx, app) {
+    const C = CONFIG.canvas, cx = C.w / 2;
+    ctx.font = '900 44px "Arial Black",Impact,sans-serif';
+    ctx.fillStyle = '#ffd24a';
+    ctx.fillText('HOW MUCH PAIN?', cx, 110);
+    const cards = [
+      ['ROOKIE', 'goalie naps on your shots · CPU pulls its punches', '#39ff6a'],
+      ['ARCADE', 'the intended BARDOWN experience', '#4fd6ff'],
+      ['INSANE', 'no mercy · CPU hunts you · goalie is awake', '#ff3355'],
+    ];
+    const cw = 320, ch = 200, gap = 30;
+    const x0 = cx - (cw * 3 + gap * 2) / 2;
+    cards.forEach(([name, blurb, color], i) => {
+      const x = x0 + i * (cw + gap), y = 220;
+      this.rr(ctx, x, y, cw, ch, 14);
+      ctx.fillStyle = 'rgba(10,12,18,0.85)';
+      ctx.fill();
+      ctx.strokeStyle = i === app.diffIdx ? '#ffffff' : 'rgba(159,176,192,0.3)';
+      ctx.lineWidth = i === app.diffIdx ? 4 : 2;
+      ctx.stroke();
+      ctx.font = '900 34px "Arial Black",Impact,sans-serif';
+      ctx.fillStyle = color;
+      ctx.fillText(name, x + cw / 2, y + 64);
+      ctx.font = '700 15px Arial';
+      ctx.fillStyle = '#9fb0c0';
+      const words = blurb.split(' · ');
+      words.forEach((w, wi) => ctx.fillText(w, x + cw / 2, y + 112 + wi * 24));
+    });
+    ctx.font = '700 18px Arial';
+    ctx.fillStyle = '#9fb0c0';
+    ctx.fillText('A / D pick · ENTER ' + (app.mode === 'playoffs' ? 'start the playoffs' : 'face off') + ' · ESC back', cx, 560);
+  },
+
+  bracket(ctx, app) {
+    const C = CONFIG.canvas, cx = C.w / 2;
+    const br = app.bracket;
+    ctx.fillStyle = '#11141b';
+    ctx.fillRect(0, 0, C.w, C.h);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    if (!br) return;
+    ctx.font = '900 44px "Arial Black",Impact,sans-serif';
+    if (br.champion !== null) {
+      const td = CONFIG.teams[br.champion];
+      ctx.fillStyle = '#ffd24a';
+      ctx.fillText('🏆  CHAMPIONS  🏆', cx, 90);
+      ctx.font = '900 56px "Arial Black",Impact,sans-serif';
+      ctx.fillStyle = td.color;
+      ctx.fillText(td.city + ' ' + td.name, cx, 160);
+      if (Math.random() < 0.12) Effects.burst(640 + (Math.random() - 0.5) * 700, 415 + (Math.random() - 0.5) * 200, { n: 14, color: Math.random() < 0.5 ? td.color : '#ffd24a', spd: 300, life: 1.0 });
+    } else if (!br.alive) {
+      ctx.fillStyle = '#ff5050';
+      ctx.fillText('ELIMINATED', cx, 90);
+      ctx.font = '700 20px Arial';
+      ctx.fillStyle = '#9fb0c0';
+      ctx.fillText('the ' + CONFIG.teams[br.user].name + ' go home early', cx, 135);
+    } else {
+      ctx.fillStyle = '#4fd6ff';
+      ctx.fillText(['QUARTERFINALS', 'SEMIFINALS', 'THE CHAMPIONSHIP'][br.round], cx, 90);
+    }
+    // columns: QF, SF, F
+    const colX = [240, 640, 1040];
+    const titles = ['QUARTERFINALS', 'SEMIS', 'FINAL'];
+    for (let r = 0; r < 3; r++) {
+      ctx.font = '900 17px "Arial Black",Impact,sans-serif';
+      ctx.fillStyle = 'rgba(159,176,192,0.7)';
+      ctx.fillText(titles[r], colX[r], 200);
+      const teams = br.rounds[r], res = br.results[r];
+      const pairs = Math.max(teams.length / 2, res.length);
+      for (let m = 0; m < pairs; m++) {
+        const a = res[m] ? res[m].a : teams[m * 2];
+        const b = res[m] ? res[m].b : teams[m * 2 + 1];
+        if (a === undefined || b === undefined) continue;
+        const y = 250 + m * (r === 0 ? 105 : r === 1 ? 210 : 0) + (r === 1 ? 50 : r === 2 ? 155 : 0);
+        const mine = (a === br.user || b === br.user) && r === br.round && !res[m];
+        this.rr(ctx, colX[r] - 160, y - 34, 320, 78, 10);
+        ctx.fillStyle = 'rgba(10,12,18,0.85)';
+        ctx.fill();
+        ctx.strokeStyle = mine ? '#ffd24a' : 'rgba(159,176,192,0.25)';
+        ctx.lineWidth = mine ? 3 : 1.5;
+        ctx.stroke();
+        for (const [slot, ti] of [[0, a], [1, b]]) {
+          const td = CONFIG.teams[ti];
+          const yy = y - 14 + slot * 32;
+          ctx.fillStyle = td.color;
+          ctx.fillRect(colX[r] - 148, yy - 9, 9, 20);
+          ctx.textAlign = 'left';
+          ctx.font = '900 16px "Arial Black",Impact,sans-serif';
+          const won = res[m] && res[m].w === ti;
+          ctx.fillStyle = res[m] ? (won ? '#ffffff' : 'rgba(159,176,192,0.55)') : '#e8eef5';
+          ctx.fillText(td.name + (ti === br.user ? ' ★' : ''), colX[r] - 128, yy);
+          if (res[m]) {
+            ctx.textAlign = 'right';
+            ctx.fillText(String(slot === 0 ? res[m].sa : res[m].sb), colX[r] + 142, yy);
+          }
+          ctx.textAlign = 'center';
+        }
+      }
+    }
+    ctx.font = '700 19px Arial';
+    ctx.fillStyle = '#9fb0c0';
+    ctx.fillText(br.champion !== null || !br.alive ? 'ENTER — back to title' : 'ENTER — play your matchup · ESC quit', cx, 690);
   },
 
   alpha(hex, a) {

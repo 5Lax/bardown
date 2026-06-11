@@ -422,15 +422,14 @@ const Render3D = {
     shorts.position.set(0, 24, 0);
     g.add(shorts);
 
-    // torso: tapered — narrow waist, broad jersey chest, deltoid caps
-    const waist = new THREE.Mesh(new THREE.CylinderGeometry(5.3, 6.1, 7.5, 14), plain);
-    waist.scale.z = 1.35 * wide;
-    waist.position.set(0, 28.5, 0);
-    upper.add(waist);
-    const chest = new THREE.Mesh(new THREE.CapsuleGeometry(6.6, 7.5, 4, 16), jersey);
-    chest.scale.set(1.02, 1, 1.5 * wide);
-    chest.position.set(0, 37.5, 0);
-    upper.add(chest);
+    // organic torso: one smooth lathed profile — hips, waist pinch, chest, shoulder taper
+    const profile = [
+      [5.9, 0], [5.3, 4.5], [5.6, 8.5], [6.6, 13], [6.9, 16.5], [6.2, 19.5], [3.4, 21.5],
+    ].map(q => new THREE.Vector2(q[0], q[1]));
+    const torso = new THREE.Mesh(new THREE.LatheGeometry(profile, 18), jersey);
+    torso.scale.z = 1.45 * wide;
+    torso.position.set(0, 24.5, 0);
+    upper.add(torso);
     for (const s of [-1, 1]) {
       const delt = new THREE.Mesh(new THREE.SphereGeometry(3.8, 10, 8), plain);
       delt.position.set(0, 43.5, s * 13.5 * wide);
@@ -444,12 +443,12 @@ const Render3D = {
     const neck = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.8, 3.5, 8), skin);
     neck.position.set(0, 47.5, 0);
     upper.add(neck);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(5.3, 12, 10), skin);
-    head.position.set(0, 52.4, 0);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(5.3, 16, 12), skin);
+    head.position.set(0.7, 52.4, 0);
     upper.add(head);
-    const helmet = new THREE.Mesh(new THREE.SphereGeometry(6.0, 12, 10), plain);
+    const helmet = new THREE.Mesh(new THREE.SphereGeometry(6.0, 16, 12), plain);
     helmet.scale.set(1.04, 0.9, 1.04);
-    helmet.position.set(-0.4, 53.6, 0);
+    helmet.position.set(0.3, 53.6, 0);
     upper.add(helmet);
     const brim = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.5, 8.2), plain);
     brim.position.set(5.8, 54.2, 0);
@@ -518,12 +517,23 @@ const Render3D = {
   },
 
   setGame(game) {
+    // free GPU resources from the previous game's rigs/floor (the arena is built once and kept)
+    const dispose = (root) => root.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) {
+        if (o.material.map) o.material.map.dispose();
+        if (o.material.dispose) o.material.dispose();
+      }
+    });
     if (this.rigs) {
       for (const r of this.rigs.values()) {
-        this.scene.remove(r.g); this.scene.remove(r.shadow); this.scene.remove(r.marker); this.scene.remove(r.tag);
+        for (const o of [r.g, r.shadow, r.marker, r.tag]) { this.scene.remove(o); dispose(o); }
       }
     }
-    if (this.floorMesh) this.scene.remove(this.floorMesh);
+    if (this.floorMesh) {
+      this.scene.remove(this.floorMesh);
+      dispose(this.floorMesh);
+    }
     const { tex, FW, FH } = this.floorTexture(game);
     this.floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(FW, FH),
       new THREE.MeshLambertMaterial({ map: tex }));
@@ -559,7 +569,7 @@ const Render3D = {
       Effects.burst(p.pos.x, p.pos.y, { n: 1, color: '#ff9930', spd: 40, life: 0.5, size: 3, drag: 1 });
     if (p.turboActive && Math.random() < 0.5) Effects.trail(p.pos.x, p.pos.y, p.teamDef.color, 6);
 
-    if (p.controlled && this.game.mode === 'p1') {
+    if (p.controlled && this.game.mode !== 'cpu') {
       rig.marker.visible = true;
       rig.marker.position.set(g.position.x, 74 + p.jumpZ + Math.sin(t * 5) * 3, g.position.z);
       rig.marker.rotation.y = t * 2;
@@ -635,7 +645,7 @@ const Render3D = {
       rig.legR.knee.rotation.x = Math.max(0.08, Math.sin(ph)) * 1.0 * runK + 0.06;
     }
 
-    const hasBall = this.game.ball.carrier === p;
+    const hasBall = p.__hasBall !== undefined ? p.__hasBall : this.game.ball.carrier === p;
     const swinging = p.hitCd > CONFIG.hit.cooldown - 0.18;
     if (rig.prevCharging && !p.charging) rig.releaseT = 0.18;
     rig.prevCharging = p.charging;
@@ -650,7 +660,18 @@ const Render3D = {
       rig.upper.rotation.z = -0.16;
       rig.legL.hip.rotation.x = -0.45; rig.legL.knee.rotation.x = 0.85;
       rig.legR.hip.rotation.x = -0.45; rig.legR.knee.rotation.x = 0.85;
-      if (threat) {
+      if (p.savePose > 0) {
+        // desperation lunge toward the save side — shows you WHERE he beat you
+        const k = p.savePose / 0.55, s = p.saveSide;
+        rig.upper.rotation.x = -s * 0.55 * k;
+        rig.upper.position.y = -3 - 3.5 * k;
+        rig.armL.sh.rotation.z = 1.1 + (s < 0 ? 1.7 * k : 0.2);
+        rig.armR.sh.rotation.z = -1.1 - (s > 0 ? 1.7 * k : 0.2);
+        rig.legL.hip.rotation.z = 0.55 * k;
+        rig.legR.hip.rotation.z = -0.55 * k;
+        rig.stick.position.set(10, 16, s * 15 * k);
+        rig.stick.rotation.set(0, 0, 0.6);
+      } else if (threat) {
         rig.armL.sh.rotation.z = 2.1; rig.armR.sh.rotation.z = -2.1;
         rig.legL.hip.rotation.z = 0.55; rig.legR.hip.rotation.z = -0.55;
         rig.stick.position.set(12, 30, 0);
@@ -702,6 +723,8 @@ const Render3D = {
       rig.stick.position.set(10, 24, 5);
       rig.stick.rotation.set(0, -0.3, 0.55);
     }
+    // athletic hunch (skaters never stand bolt upright)
+    if (!p.isGoalie && !swinging) rig.upper.rotation.z += -0.07 - runK * 0.05;
     this.updateStickTip(rig);
   },
 
@@ -839,10 +862,71 @@ const Render3D = {
     return { ty: pt.z + 415, tz: pt.y };
   },
 
+  // ---- instant replay (view-side only; the sim never pauses) ----
+
+  snapshot(game) {
+    return {
+      ball: {
+        x: game.ball.pos.x, y: game.ball.pos.y, z: game.ball.z, state: game.ball.state,
+        carrierIdx: game.ball.carrier ? game.players.indexOf(game.ball.carrier) : -1,
+      },
+      players: game.players.map(p => ({
+        team: p.team, idx: p.idx, isGoalie: p.isGoalie, teamDef: p.teamDef, r: p.r,
+        pos: { x: p.pos.x, y: p.pos.y }, vel: { x: p.vel.x, y: p.vel.y },
+        facing: p.facing, state: p.state, knockT: p.knockT, jumpZ: p.jumpZ,
+        charging: p.charging, charge: p.charge, hitCd: p.hitCd, tackleT: p.tackleT,
+        turboActive: false, controlled: false,
+        savePose: p.savePose || 0, saveSide: p.saveSide || 1,
+        __hasBall: game.ball.carrier === p,
+      })),
+    };
+  },
+
+  renderReplay(game, dt) {
+    const rp = this.replay;
+    rp.idx += dt * 60 * 0.45; // slow-mo
+    if (rp.idx >= rp.frames.length || game.state !== 'goal') { this.replay = null; return; }
+    const f = rp.frames[Math.floor(rp.idx)];
+    f.players.forEach((proxy, i) => {
+      const rig = this.rigs.get(game.players[i]);
+      if (rig) this.syncRig(proxy, rig, dt);
+    });
+    const bp = f.ball;
+    if ((bp.state === 'carried' || bp.state === 'held') && bp.carrierIdx >= 0) {
+      const rig = this.rigs.get(game.players[bp.carrierIdx]);
+      if (rig) this.ballMesh.position.copy(rig.stickTip).add(new THREE.Vector3(0, 2, 0));
+    } else {
+      this.ballMesh.position.set(bp.x - 640, Math.max(5, bp.z + 5), bp.y - 415);
+    }
+    this.ballShadow.position.set(this.ballMesh.position.x, 0.7, this.ballMesh.position.z);
+    for (const gh of this.ghosts) gh.m.visible = false;
+    for (const s of this.sprites) s.visible = false;
+    for (const q of this.trailQuads) q.visible = false;
+    this.reticle.visible = false;
+    this.passMarker.visible = false;
+    // low corner cam behind the net that just got beaten
+    const side = game.ball.pos.x > 640 ? 1 : -1;
+    this.camera.position.set(side * 645, 92, 165);
+    this.camera.lookAt(side * 320, 24, -10);
+    this.camera.fov = 50;
+    this.camera.updateProjectionMatrix();
+    this.renderer.render(this.scene, this.camera);
+  },
+
   render(game, dt) {
     if (!this.active || !game) return;
-    if (game !== this.game) this.setGame(game);
+    if (game !== this.game) { this.setGame(game); this.history = []; this.replay = null; this.lastState = ''; }
     this.t += dt;
+    if (!this.history) this.history = [];
+    if (game.state === 'goal' && this.lastState !== 'goal' && this.history.length > 24) {
+      this.replay = { frames: this.history.slice(-150), idx: 0 };
+    }
+    this.lastState = game.state;
+    if (this.replay) { this.renderReplay(game, dt); return; }
+    if (game.state === 'play' || game.state === 'goal' || game.state === 'break') {
+      this.history.push(this.snapshot(game));
+      if (this.history.length > 160) this.history.shift();
+    }
     for (const p of game.players) {
       const rig = this.rigs.get(p);
       if (rig) this.syncRig(p, rig, dt);
