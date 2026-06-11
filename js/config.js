@@ -17,6 +17,8 @@ const CONFIG = {
     pickupR: 25, scoopCd: 0.45,
   },
   jump: { v0: 255, grav: 780, dodgeZ: 10 },
+  // double right-click: launch horizontally and pancake whoever you touch. Whiff = you eat floor.
+  tackle: { window: 0.35, cd: 1.3, speed: 560, time: 0.5, power: 1.55, selfDown: 0.4 },
   goalie: {
     r: 19, coverW: 52, coverH: 47, bodyH: 34, arcR: 30, maxLateral: 36,
     reflexSpeed: 195, holdTime: 0.85, roamR: 86, mass: 1.7,

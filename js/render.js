@@ -495,7 +495,7 @@ const Render = {
     const rows = [
       'W attacks the far net · ASD run around it · mouse aims · always turbo',
       'LEFT-CLICK: tap = PASS (switch on D) · hold = power up, release = RIP IT',
-      'RIGHT-CLICK check · SPACE jump (hop checks!)',
+      'RIGHT-CLICK check · DOUBLE R-CLICK flying tackle · SPACE jump (hop checks!)',
       'shoot mid-air = JUMP SHOT · charging + tap R-CLICK = showtime',
       'release at full sprint near the crease = DIVE · hold G = goalie',
     ];

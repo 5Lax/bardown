@@ -61,5 +61,13 @@ Per user feedback on the Blast view:
 - **Rounder athletes:** capsule torsos with wrap-around numbered jerseys (number at u=0.5 + split seam), capsule limbs, sphere heads under domed team helmets with brim+cage, neck, rounded gloves/cleats, cylinder shorts. Jump tuck pose; name tag rides jumpZ.
 **Tests:** isolated control diagnostics in-browser (W vector +144,0 toward enemy net; charge engages at the 0.14 s threshold; tap-pass launches; jump peak 36-42, clean landings; airborne dodge), 4-game headless batch PASS 0 violations, 0 console errors.
 
+## Tackles, cradle, Blitz bodies, directional passing (2026-06-10)
+- **Flying body tackle (double right-click):** new `tackling` player state — horizontal launch at 560 px/s along your aim, first contact gets pancaked through shared `applyHit` at 1.55× power (+fumble bonus, +goalie penalty heat, TRUCKED!/PANCAKED! announcer lines); whiff and you land face-down for 0.4 s. Single R-click = normal check (first click of a double still swings — it reads as check-into-tackle). AI on-ball defenders launch from mid-range occasionally. Goalies can't tackle.
+- **Check animation** is now a violent sweep: torso whips 0.85→-0.7 rad through the swing window, stick thrusts out 10 units.
+- **Real cradle:** stick carried upright by the helmet (head up at ~60°), rocking at 7 Hz with the top hand high and bottom hand at the waist — the ball visibly rides the pocket. Run cycle gained torso counter-rotation and bent-elbow arm pump.
+- **Bodies, round 3:** V-taper (broad jersey chest capsule over a narrow waist), deltoid spheres, longer legs. Reads NFL-Blitz-athletic at the gameplay camera.
+- **Directional passing:** target choice now blends your aim direction (mouse) 68/32 with your running direction and weights direction much harder than distance — click at a teammate while cutting and the pass goes where you mean it.
+**Tests:** human double-click path verified end-to-end in-browser (check → tackle at 571 px/s → whiff lands down), AI tackle captured mid-flight (tools/shot-tackle.jpg), headless batches PASS 0 violations (~22 combined goals — tackle fumbles added chaos, still in band), 0 console errors.
+
 ## Post-ship fix (2026-06-10)
 Main loop gained a setInterval watchdog: embedded webviews / occluded windows can suppress requestAnimationFrame entirely, which left the canvas frozen black (this is what made the in-app preview panel look dead). If rAF goes stale >250 ms, a 30 Hz timer drives the same tick(). Verified: game clock now advances in a fully hidden preview window.

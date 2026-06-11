@@ -17,6 +17,7 @@ WASD + mouse + spacebar. That's the game. Everyone is always in turbo.
 | Pass (tap) / switch on D | Left-click tap | A |
 | Shoot (hold = power, release = fire) | Left-click hold | X |
 | Check / hit | Right-click | B |
+| Flying body tackle | Double right-click | B×2 |
 | Jump (hop checks) | SPACE | Y |
 | Goalie takeover | hold G | LB |
 | Pause / Mute | P / M | Start |

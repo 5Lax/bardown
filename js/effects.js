@@ -7,6 +7,7 @@ const ANNOUNCER = {
   bigsave:   ['ABSOLUTE LARCENY!', 'HOW?!', 'GLOVE SAYS NO!'],
   hit:       ['CRUNCH!', 'LEVELED!', 'FLATTENED!', 'BODIED!'],
   bighit:    ['CROSSCHECK CITY!', 'DEMOLISHED!!', 'INTO ORBIT!', 'CALL THE MAYOR — HE\'S GONE!'],
+  tackle:    ['TRUCKED!!', 'PANCAKED!', 'FULL EXTENSION!', 'SEE YA!', 'BODIED INTO NEXT WEEK!'],
   latehit:   ['LATE HIT!', 'AFTER THE WHISTLE!', 'CHEAP SHOT!'],
   fire:      ['HE\'S ON FIRE!', 'THE WHOLE TEAM IS ON FIRE!!'],
   fireout:   ['FIRE EXTINGUISHED'],

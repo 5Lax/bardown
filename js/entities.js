@@ -13,12 +13,13 @@ class Player {
     this.jumpZ = 0; this.jumpVz = 0;
     this.charge = 0; this.charging = false; this.pendingSpecial = null;
     this.hitCd = 0; this.scoopCd = 0; this.knockT = 0; this.diveT = 0; this.benchT = 0;
+    this.tackleT = 0; this.tackleCd = 0;
     this.catchTime = -99; this.lastAim = null; this.controlled = false;
     this.ai = { decideT: 0, spot: null, cutT: 0, cutting: 0, plan: 'drive', chargeAim: 0, wantCharge: 0.7, holdT: 0 };
     this.resetIntent();
   }
   resetIntent() {
-    this.intent = { mx: 0, my: 0, aim: null, turbo: false, pass: false, passTo: null, shootHold: false, hit: false, jump: false };
+    this.intent = { mx: 0, my: 0, aim: null, turbo: false, pass: false, passTo: null, shootHold: false, hit: false, jump: false, tackle: false };
   }
   get hasBall() { return this.game.ball.carrier === this; }
 
@@ -38,6 +39,7 @@ class Player {
     const P = CONFIG.player, g = this.game, mods = g.getMods(this.team);
     this.hitCd = Math.max(0, this.hitCd - dt);
     this.scoopCd = Math.max(0, this.scoopCd - dt);
+    this.tackleCd = Math.max(0, this.tackleCd - dt);
 
     if (this.state === 'benched') { this.vel.x = this.vel.y = 0; return; }
 
@@ -60,6 +62,23 @@ class Player {
         g.fireShot(this, 0.85, 'dive');
       }
       if (this.diveT <= 0) { this.state = 'down'; this.knockT = 0.45; }
+      return;
+    }
+
+    if (this.state === 'tackling') {
+      this.tackleT -= dt;
+      this.vel.x = damp(this.vel.x, 1.1, dt); this.vel.y = damp(this.vel.y, 1.1, dt);
+      this.pos.x += this.vel.x * dt; this.pos.y += this.vel.y * dt;
+      collideBoards(this.pos, this.vel, this.r, 0.4);
+      for (const v of g.players) {
+        if (v.team === this.team || v.state !== 'play' || v.jumpZ > CONFIG.jump.dodgeZ) continue;
+        if (dist(this.pos.x, this.pos.y, v.pos.x, v.pos.y) < this.r + v.r + 6) {
+          g.applyHit(this, v, CONFIG.tackle.power * this.teamDef.pwr, { tackle: true });
+          this.tackleT = Math.min(this.tackleT, 0.1);
+          break;
+        }
+      }
+      if (this.tackleT <= 0) { this.state = 'down'; this.knockT = CONFIG.tackle.selfDown; }
       return;
     }
 
@@ -128,7 +147,8 @@ class Player {
     } else {
       this.charging = false; this.charge = 0;
     }
-    if (it.hit && !this.hasBall && g.hitsEnabled) this.tryHit();
+    if (it.tackle && !this.hasBall && g.hitsEnabled) this.startTackle();
+    else if (it.hit && !this.hasBall && g.hitsEnabled) this.tryHit();
     else if (it.hit && this.hasBall && !this.charging && g.hitsEnabled) this.tryHit(); // ball-carrier can throw shoulders too
 
     // boards, nets, crease
@@ -146,6 +166,25 @@ class Player {
       }
     }
     this.resetIntent();
+  }
+
+  startTackle() {
+    const T = CONFIG.tackle;
+    if (this.state !== 'play' || this.tackleCd > 0 || this.jumpZ > CONFIG.jump.dodgeZ || this.isGoalie) return;
+    this.state = 'tackling';
+    this.tackleT = T.time;
+    this.tackleCd = T.cd;
+    this.charging = false; this.charge = 0;
+    const it = this.intent;
+    // launch where you're aiming first, else where you're running, else where you face
+    let dir;
+    if (it.aim && Math.hypot(it.aim.x, it.aim.y) > 0.01) dir = norm(it.aim.x, it.aim.y);
+    else if (Math.hypot(it.mx, it.my) > 0.2) dir = norm(it.mx, it.my);
+    else dir = { x: Math.cos(this.facing), y: Math.sin(this.facing) };
+    this.facing = Math.atan2(dir.y, dir.x);
+    this.vel.x = this.vel.x * 0.3 + dir.x * T.speed;
+    this.vel.y = this.vel.y * 0.3 + dir.y * T.speed;
+    AudioSys.jumpSfx();
   }
 
   tryHit() {

@@ -404,14 +404,14 @@ const Render3D = {
       thigh.position.y = -6;
       hip.add(thigh);
       const knee = new THREE.Group();
-      knee.position.y = -12;
+      knee.position.y = -13;
       hip.add(knee);
-      const shin = new THREE.Mesh(new THREE.CapsuleGeometry(2.5 * padR, 6, 3, 9), goalie ? trim : new THREE.MeshLambertMaterial({ color: td.trim }));
-      shin.position.y = -5.5;
+      const shin = new THREE.Mesh(new THREE.CapsuleGeometry(2.5 * padR, 6.5, 3, 9), goalie ? trim : new THREE.MeshLambertMaterial({ color: td.trim }));
+      shin.position.y = -5.8;
       knee.add(shin);
       const foot = new THREE.Mesh(new THREE.CapsuleGeometry(2.3, 4.2, 2, 8), shoe);
       foot.rotation.z = Math.PI / 2;
-      foot.position.set(2.2, -11.3, 0);
+      foot.position.set(2.2, -11.8, 0);
       knee.add(foot);
       g.add(hip);
       return { hip, knee };
@@ -422,11 +422,20 @@ const Render3D = {
     shorts.position.set(0, 24, 0);
     g.add(shorts);
 
-    // torso: single capsule wearing the wrap-around jersey
-    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(6.4, 9.5, 4, 16), jersey);
-    torso.scale.set(1.0, 1, 1.55 * wide);
-    torso.position.set(0, 35.5, 0);
-    upper.add(torso);
+    // torso: tapered — narrow waist, broad jersey chest, deltoid caps
+    const waist = new THREE.Mesh(new THREE.CylinderGeometry(5.3, 6.1, 7.5, 14), plain);
+    waist.scale.z = 1.35 * wide;
+    waist.position.set(0, 28.5, 0);
+    upper.add(waist);
+    const chest = new THREE.Mesh(new THREE.CapsuleGeometry(6.6, 7.5, 4, 16), jersey);
+    chest.scale.set(1.02, 1, 1.5 * wide);
+    chest.position.set(0, 37.5, 0);
+    upper.add(chest);
+    for (const s of [-1, 1]) {
+      const delt = new THREE.Mesh(new THREE.SphereGeometry(3.8, 10, 8), plain);
+      delt.position.set(0, 43.5, s * 13.5 * wide);
+      upper.add(delt);
+    }
     // shoulder roll
     const pads = new THREE.Mesh(new THREE.CapsuleGeometry(4.3, 15 * wide, 3, 10), plain);
     pads.rotation.x = Math.PI / 2;
@@ -591,6 +600,22 @@ const Render3D = {
       return;
     }
 
+    if (p.state === 'tackling') {
+      // full-extension flying tackle: superman, arms wide for the wrap
+      const prog = clamp(1 - p.tackleT / CONFIG.tackle.time, 0, 1);
+      const yaw = -Math.atan2(p.vel.y, p.vel.x || 0.01);
+      g.position.y = 9 + Math.sin(prog * Math.PI) * 7;
+      g.rotation.set(0, yaw, 0);
+      g.rotateZ(1.42);
+      rig.armL.sh.rotation.set(0, 0, 2.95); rig.armL.el.rotation.x = 0.25;
+      rig.armR.sh.rotation.set(0, 0, -2.95); rig.armR.el.rotation.x = 0.25;
+      rig.legL.hip.rotation.x = 0.25; rig.legL.knee.rotation.x = 0.3;
+      rig.legR.hip.rotation.x = -0.2; rig.legR.knee.rotation.x = 0.4;
+      rig.stick.position.set(-6, 6, 10);
+      rig.stick.rotation.set(0, 0.9, 0.4);
+      return;
+    }
+
     g.rotation.set(0, -p.facing, 0);
     rig.phase += spd * dt * 0.055;
     const runK = clamp(spd / 250, 0, 1);
@@ -637,11 +662,14 @@ const Render3D = {
         rig.stick.rotation.set(0, 0, -1.15);
       }
     } else if (swinging) {
-      rig.upper.rotation.z = -0.32;
-      rig.armL.sh.rotation.set(-1.25, 0, 0.35); rig.armL.el.rotation.x = 0.25;
-      rig.armR.sh.rotation.set(-1.25, 0, -0.35); rig.armR.el.rotation.x = 0.25;
-      rig.stick.position.set(15, 31, 0);
-      rig.stick.rotation.set(0, Math.PI / 2, 0);
+      // violent cross-check: torso whips through the swing, stick thrusts out
+      const swT = clamp((CONFIG.hit.cooldown - p.hitCd) / 0.18, 0, 1);
+      rig.upper.rotation.y = lerp(0.85, -0.7, swT);
+      rig.upper.rotation.z = -0.4;
+      rig.armL.sh.rotation.set(-1.35, 0, 0.4); rig.armL.el.rotation.x = 0.2;
+      rig.armR.sh.rotation.set(-1.35, 0, -0.4); rig.armR.el.rotation.x = 0.2;
+      rig.stick.position.set(9 + swT * 10, 30, 0);
+      rig.stick.rotation.set(0, Math.PI / 2 + lerp(-0.5, 0.45, swT), 0);
     } else if (p.charging) {
       const wind = 0.45 + p.charge * 0.9;
       rig.upper.rotation.y = wind * 0.55;
@@ -657,19 +685,22 @@ const Render3D = {
       rig.stick.position.set(17, 31, -4);
       rig.stick.rotation.set(0, 0.9 * (1 - k), -0.3);
     } else if (hasBall) {
-      const rock = Math.sin(t * 6.5) * 0.13;
-      rig.upper.rotation.y = rock * 0.25;
-      rig.armL.sh.rotation.set(-0.55 + rock * 0.3, 0, 0.35); rig.armL.el.rotation.x = 1.0;
-      rig.armR.sh.rotation.set(0.35, 0, -0.3); rig.armR.el.rotation.x = 0.55;
-      rig.stick.position.set(10, 29, 5);
-      rig.stick.rotation.set(rock, -0.35, 0.35 + rock * 0.3);
+      // proper box cradle: stick up by the helmet, head rocking, top hand high
+      const rock = Math.sin(t * 7) * 0.16;
+      rig.upper.rotation.y = rock * 0.3 - Math.sin(ph) * 0.1 * runK;
+      rig.armL.sh.rotation.set(-1.0 + rock * 0.25, 0, 0.5); rig.armL.el.rotation.x = 1.4;
+      rig.armR.sh.rotation.set(0.45, 0, -0.3); rig.armR.el.rotation.x = 0.75;
+      rig.stick.position.set(6, 31, 6.5);
+      rig.stick.rotation.set(rock * 0.6, -0.45, 1.05 + rock * 0.3);
     } else {
-      rig.armL.sh.rotation.x = Math.sin(ph) * 0.42 * runK + 0.2;
-      rig.armR.sh.rotation.x = -Math.sin(ph) * 0.42 * runK + 0.2;
-      rig.armL.el.rotation.x = 0.55; rig.armR.el.rotation.x = 0.55;
-      rig.armL.sh.rotation.z = 0.18; rig.armR.sh.rotation.z = -0.18;
-      rig.stick.position.set(11, 25, 5);
-      rig.stick.rotation.set(0, -0.3, 0.5);
+      // natural run: torso counter-rotates the stride, arms pump with bent elbows
+      rig.upper.rotation.y = -Math.sin(ph) * 0.16 * runK;
+      rig.armL.sh.rotation.x = Math.sin(ph) * 0.55 * runK + 0.18;
+      rig.armR.sh.rotation.x = -Math.sin(ph) * 0.55 * runK + 0.18;
+      rig.armL.el.rotation.x = 0.8; rig.armR.el.rotation.x = 0.8;
+      rig.armL.sh.rotation.z = 0.16; rig.armR.sh.rotation.z = -0.16;
+      rig.stick.position.set(10, 24, 5);
+      rig.stick.rotation.set(0, -0.3, 0.55);
     }
     this.updateStickTip(rig);
   },

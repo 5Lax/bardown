@@ -185,7 +185,10 @@ const AI = {
       p.intent.aim = { x: c.pos.x - p.pos.x, y: c.pos.y - p.pos.y };
       if (game.hitsEnabled && tick) {
         const d = dist(p.pos.x, p.pos.y, c.pos.x, c.pos.y);
-        if (d < A.hitRange + 14 && game.rng.chance(A.hitAggro * game.aiAggro(p.team))) p.intent.hit = true;
+        if (d > 50 && d < 105 && p.tackleCd <= 0 && game.rng.chance(0.09 * game.aiAggro(p.team))) {
+          p.intent.aim = { x: c.pos.x - p.pos.x, y: c.pos.y - p.pos.y };
+          p.intent.tackle = true;
+        } else if (d < A.hitRange + 14 && game.rng.chance(A.hitAggro * game.aiAggro(p.team))) p.intent.hit = true;
       }
       return;
     }

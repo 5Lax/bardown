@@ -292,7 +292,12 @@ class Game {
       if (p.hasBall || (this.ball.state === 'held' && this.ball.carrier === p)) it.pass = true;
       else this.manualSwitch();
     }
-    if (Input.pressed('hit')) it.hit = true;
+    if (Input.pressed('hit')) {
+      // double right-click inside the window = flying body tackle
+      if (this.time - (this.lastHitPress || -9) < CONFIG.tackle.window) it.tackle = true;
+      else it.hit = true;
+      this.lastHitPress = this.time;
+    }
   }
 
   manualSwitch() {
@@ -333,8 +338,14 @@ class Game {
 
   // ---- actions ----
 
+  // pass targeting: where you're aiming (mouse/stick), blended with where you're running
   bestPassTarget(p) {
-    const aim = p.lastAim ? norm(p.lastAim.x, p.lastAim.y) : { x: Math.cos(p.facing), y: Math.sin(p.facing) };
+    let aim = p.lastAim ? norm(p.lastAim.x, p.lastAim.y) : { x: Math.cos(p.facing), y: Math.sin(p.facing) };
+    const sp = Math.hypot(p.vel.x, p.vel.y);
+    if (sp > 70) {
+      const blended = norm(aim.x * 0.68 + (p.vel.x / sp) * 0.32, aim.y * 0.68 + (p.vel.y / sp) * 0.32);
+      if (blended.x || blended.y) aim = blended;
+    }
     let best = null, bs = -1e9, nearest = null, nd = 1e9;
     for (const m of this.teams[p.team]) {
       if (m === p || m.state !== 'play') continue;
@@ -345,7 +356,7 @@ class Game {
       const dot = dir.x * aim.x + dir.y * aim.y;
       if (d < nd) { nd = d; nearest = m; }
       if (dot < CONFIG.pass.cone) continue;
-      const s = dot * 1.6 - d * 0.0012 - (m.isGoalie ? 0.8 : 0);
+      const s = dot * 2.2 - d * 0.0012 - (m.isGoalie ? 0.8 : 0);
       if (s > bs) { bs = s; best = m; }
     }
     return best || nearest;
@@ -445,18 +456,24 @@ class Game {
       if (d < bd) { bd = d; victim = v; }
     }
     if (!victim) return;
-    const late = victim.state === 'down';
     const spd = Math.hypot(hitter.vel.x, hitter.vel.y);
     let power = (0.8 + (spd / CONFIG.player.maxSpeed) * 0.5) * hitter.teamDef.pwr;
     if (hitter.turboActive) power += H.turboPower;
+    this.applyHit(hitter, victim, power, {});
+  }
+
+  // shared takedown resolution for checks and flying tackles
+  applyHit(hitter, victim, power, opts) {
+    const H = CONFIG.hit;
+    const late = victim.state === 'down';
     const dir = norm(victim.pos.x - hitter.pos.x, victim.pos.y - hitter.pos.y);
     const hadBall = this.ball.carrier === victim;
     victim.knockDown(dir.x, dir.y, power);
     if (hadBall) {
-      const fum = H.fumbleBase + this.getMods(hitter.team).fumbleBonus;
-      if (this.rng.chance(fum)) {
+      const fum = H.fumbleBase + this.getMods(hitter.team).fumbleBonus + (opts.tackle ? 0.15 : 0);
+      if (this.rng.chance(Math.min(0.98, fum))) {
         const a2 = Math.atan2(dir.y, dir.x) + this.rng.range(-0.9, 0.9);
-        const pop = this.rng.range(H.fumblePop[0], H.fumblePop[1]);
+        const pop = this.rng.range(H.fumblePop[0], H.fumblePop[1]) * (opts.tackle ? 1.25 : 1);
         this.ball.drop(Math.cos(a2) * pop, Math.sin(a2) * pop);
         this.ball.z = 8;
         this.ball.syncPrev();
@@ -464,15 +481,16 @@ class Game {
       }
     }
     this.stats.hits[hitter.team]++;
-    Effects.addShake(H.shake * power * 0.8);
-    Effects.burst(victim.pos.x, victim.pos.y, { n: 12, color: '#ffffff', spd: 220, life: 0.45 });
+    Effects.addShake(H.shake * power * (opts.tackle ? 1.1 : 0.8));
+    Effects.burst(victim.pos.x, victim.pos.y, { n: opts.tackle ? 20 : 12, color: '#ffffff', spd: opts.tackle ? 300 : 220, life: 0.45 });
     AudioSys.thud(power);
-    if (late) Effects.announce('latehit', { size: 40, color: '#ff8855', life: 1.0 });
+    if (opts.tackle) Effects.announce('tackle', { size: 52, life: 1.2 });
+    else if (late) Effects.announce('latehit', { size: 40, color: '#ff8855', life: 1.0 });
     else if (power > H.bigPowerAt && this.rng.chance(0.6)) Effects.announce('bighit', { size: 48, life: 1.1 });
     else if (this.rng.chance(0.18)) Effects.announce('hit', { size: 36, life: 0.8, y: 250 });
     if (this.penaltiesEnabled) {
       let heat = 0;
-      if (victim.isGoalie) heat += CONFIG.penalty.heatGoalie;
+      if (victim.isGoalie) heat += CONFIG.penalty.heatGoalie * (opts.tackle ? 1.5 : 1);
       if (late) heat += CONFIG.penalty.heatLate;
       if (heat > 0) {
         this.penaltyHeat[hitter.team] += heat;
