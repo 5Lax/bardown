@@ -21,7 +21,7 @@ const CONFIG = {
   tackle: { window: 0.35, cd: 1.3, speed: 560, time: 0.5, power: 1.55, selfDown: 0.4 },
   goalie: {
     r: 19, coverW: 52, coverH: 47, bodyH: 34, arcR: 30, maxLateral: 36,
-    reflexSpeed: 195, holdTime: 0.85, roamR: 86, mass: 1.7,
+    reflexSpeed: 262, holdTime: 0.85, roamR: 86, mass: 1.7,
   },
 
   pass: {
@@ -29,7 +29,7 @@ const CONFIG = {
     quickWindow: 0.28, quickSpeed: 1.3, quickErr: 0.85, interceptR: 12, interceptP: 0.5,
   },
   shot: {
-    minSpeed: 770, maxSpeed: 1260, chargeTime: 0.62, z0: 12,
+    minSpeed: 770, maxSpeed: 1260, chargeTime: 0.5, z0: 12,
     errMax: 34, errMin: 5, maxRange: 760,
     catchChance: 0.3, reboundSpeed: [300, 560],
     turboMult: 1.1, fireMult: 1.2,
@@ -58,13 +58,16 @@ const CONFIG = {
 
   ai: {
     decide: 0.13, reactBase: 0.10,
-    shootRange: 345, shootQuality: 0.34, forceShotAt: 3.2,
+    shootRange: 345, shootQuality: 0.39, forceShotAt: 3.2,
     passPressure: 70, openDist: 85, cutEvery: [2.5, 6.0], cutTime: 1.0,
     hitRange: 44, hitAggro: 0.28, offBallAggro: 0.12, defGap: 30, chasePair: 2,
     cpuChargeMin: 0.5, cpuChargeMax: 0.95, turboUseAt: 35,
   },
 
   switchCfg: { hysteresis: 1.25 },
+
+  // house rules vs the human in 1P: goalie freezes briefly on your release, then reacts slower
+  assist: { goalieDelay: 0.24, goalieReflex: 0.72, shotErr: 0.85 },
 
   teams: [
     { city: 'BAYPORT',      name: 'RIPTIDE',       color: '#ff7a1a', color2: '#13283f', trim: '#ffd9b0', spd: 1.02, pwr: 0.98, sht: 1.00 },

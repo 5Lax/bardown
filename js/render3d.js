@@ -827,6 +827,18 @@ const Render3D = {
     return { x: pt.x + 640, y: pt.z + 415 };
   },
 
+  // WYSIWYG shooting: ray vs the vertical goal plane — point at the mouth, hit that spot
+  mouseToGoalPlane(mx, my, netIdx) {
+    if (!this.active) return null;
+    const net = CONFIG.goals[netIdx];
+    const ndc = new THREE.Vector2((mx / CONFIG.canvas.w) * 2 - 1, -((my / CONFIG.canvas.h) * 2 - 1));
+    this.raycaster.setFromCamera(ndc, this.camera);
+    const plane = new THREE.Plane(new THREE.Vector3(1, 0, 0), -(net.x - 640));
+    const pt = new THREE.Vector3();
+    if (!this.raycaster.ray.intersectPlane(plane, pt)) return null;
+    return { ty: pt.z + 415, tz: pt.y };
+  },
+
   render(game, dt) {
     if (!this.active || !game) return;
     if (game !== this.game) this.setGame(game);

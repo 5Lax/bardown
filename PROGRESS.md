@@ -69,5 +69,13 @@ Per user feedback on the Blast view:
 - **Directional passing:** target choice now blends your aim direction (mouse) 68/32 with your running direction and weights direction much harder than distance — click at a teammate while cutting and the pass goes where you mean it.
 **Tests:** human double-click path verified end-to-end in-browser (check → tackle at 571 px/s → whiff lands down), AI tackle captured mid-flight (tools/shot-tackle.jpg), headless batches PASS 0 violations (~22 combined goals — tackle fumbles added chaos, still in band), 0 console errors.
 
+## Human scoring fix — "why can't I score?" (2026-06-10)
+**Diagnosis (measured, not guessed):** the human's shot-height mapping (mouse depth past the goal line on the floor) was built for the overhead camera; from the Blast end camera that region is perspective-crushed, so virtually every human shot mapped to low-center — the exact zone the goalie's body block eats. The CPU never used that mapping (goalie-aware corner auto-aim). Second blocker, exposed by a simulated-shooting harness: goalie coverage (52 wide) + slide speed over a typical flight covers the ENTIRE 84-wide mouth — a squared goalie was mathematically unbeatable on placement from range (16-shot corner-snipe test: 14 saves, 0 wide, 2 goals).
+**Fixes:**
+- **WYSIWYG aiming:** mouse ray now intersects the goal plane — put the cursor on the spot in the mouth (the reticle sits exactly under it) and the shot targets that spot. Floor-pointing falls back to a low shot, clamped onto the cage.
+- **House rules (1P only, CPU-vs-CPU untouched):** goalie freezes 0.24 s on the human's release then reacts at 0.72×; human shot scatter ×0.85.
+- chargeTime 0.62→0.5 (less windup exposure to checks). CPU rebalance: shootQuality 0.34→0.39, goalie lateral speed knob re-wired (CONFIG.goalie.reflexSpeed had silently died in the always-turbo change — goalies were inheriting runner speed) and set to 262.
+**Results:** simulated human corner-shots from 310-440 px: **13% → 33% conversion** (closer = placement-only). CPU-vs-CPU 24 combined goals, comeback batch from 0-5 still produces 1-4 goal finals. All PASS, 0 violations.
+
 ## Post-ship fix (2026-06-10)
 Main loop gained a setInterval watchdog: embedded webviews / occluded windows can suppress requestAnimationFrame entirely, which left the canvas frozen black (this is what made the in-app preview panel look dead). If rAF goes stale >250 ms, a 30 Hz timer drives the same tick(). Verified: game clock now advances in a fully hidden preview window.

@@ -78,6 +78,11 @@ const Input = {
   mouseRink() {
     return this.mouse.rink || { x: this.mouse.x, y: this.mouse.y };
   },
+  // mouse projected onto a goal's vertical plane (3D only)
+  goalPlane(netIdx) {
+    return (typeof Render3D !== 'undefined' && Render3D.active)
+      ? Render3D.mouseToGoalPlane(this.mouse.x, this.mouse.y, netIdx) : null;
+  },
 
   // aim priority: right stick > recent mouse > arrows > null (auto-aim)
   aimFor(p) {

@@ -85,6 +85,11 @@ class Game {
       const sm = this.getMods(shot.team);
       if (sm.onFire) r *= 0.85;
       if (shot.special) r *= sm.desperation ? CONFIG.rubber.despGoalieMult : 0.8;
+      // arcade house rules: the CPU goalie freezes on the human's release, then reacts slower
+      if (this.mode === 'p1' && shot.team === this.humanTeam) {
+        if (this.time - shot.t0 < CONFIG.assist.goalieDelay) return 0;
+        r *= CONFIG.assist.goalieReflex;
+      }
     }
     return r;
   }
@@ -384,10 +389,16 @@ class Game {
     const a = p.lastAim;
     if (!p.controlled || !a) return null;
     if (a.mouse && Input.enabled) {
+      // pointing at the goal mouth: aim exactly where the cursor sits on the goal plane
+      const gp = Input.goalPlane(netIdx);
+      if (gp && Math.abs(gp.ty - cy) < 85 && gp.tz > -12 && gp.tz < 95) {
+        return { ty: clamp(gp.ty, cy - 40, cy + 40), tz: clamp(gp.tz, 4, 56) };
+      }
+      // pointing at the floor: low shot toward that spot, clamped onto the cage
       const m = Input.mouseRink();
-      const ty = clamp(m.y, cy - 52, cy + 52);
+      const ty = clamp(m.y, cy - 44, cy + 44);
       const depth = Math.max(0, (net.x - m.x) * net.f);
-      return { ty, tz: clamp(6 + depth * 1.1, 4, 58) };
+      return { ty, tz: clamp(6 + depth * 1.1, 4, 56) };
     }
     if (Math.hypot(a.x, a.y) > 0.01) {
       const n = norm(a.x, a.y);
@@ -417,6 +428,7 @@ class Game {
     const quick = (this.time - p.catchTime) < CONFIG.pass.quickWindow;
     let { ty, tz } = this.aimTarget(p, netIdx);
     let err = lerp(S.errMax, S.errMin, charge) * mods.err / p.teamDef.sht;
+    if (this.mode === 'p1' && p.team === this.humanTeam) err *= CONFIG.assist.shotErr; // house rules
     if (quick) err *= CONFIG.pass.quickErr;
     if (special) err *= CONFIG.special.errMult * (mods.desperation ? CONFIG.rubber.despErrMult : 1);
     ty += this.rng.range(-err, err);

@@ -108,7 +108,7 @@ class Player {
     let accel = P.accel;
     if (this.charging) maxSpd *= P.chargeSlow;
     if (this.hasBall) maxSpd *= P.carrySlow;
-    if (this.isGoalie) { maxSpd *= 0.82; }
+    if (this.isGoalie) maxSpd = CONFIG.goalie.reflexSpeed; // the real save-or-goal dial
     this.vel.x += it.mx * accel * dt;
     this.vel.y += it.my * accel * dt;
     this.vel.x = damp(this.vel.x, P.frict, dt);
@@ -265,7 +265,7 @@ class Ball {
     const d = norm(net.x - this.pos.x, ty - this.pos.y);
     this.vel.x = d.x * speed; this.vel.y = d.y * speed;
     const total = Math.max(20, dist(this.pos.x, this.pos.y, net.x, ty));
-    this.shot = { net: netIdx, ty, tz, z0: CONFIG.shot.z0, total, traveled: 0, speed, special: special || null, quick: !!quick, team: shooter.team, shooter };
+    this.shot = { net: netIdx, ty, tz, z0: CONFIG.shot.z0, total, traveled: 0, speed, special: special || null, quick: !!quick, team: shooter.team, shooter, t0: this.game.time };
     this.z = CONFIG.shot.z0;
   }
 
