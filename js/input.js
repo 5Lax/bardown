@@ -146,6 +146,7 @@ const Input = {
       case 'shoot': return eat('KeyJ', 'MouseL', 'PadX');
       case 'hit': return eat('KeyK', 'MouseR', 'PadB');
       case 'cut': return eat('KeyE', 'PadUp');
+      case 'mod': return eat('ShiftLeft', 'ShiftRight', 'PadRB');
       case 'pause': return eat('KeyP', 'Escape', 'PadStart');
       case 'mute': return eat('KeyM');
       case 'confirm': return eat('Enter', 'Space', 'PadA');

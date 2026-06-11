@@ -91,6 +91,7 @@ class Game {
       const sm = this.getMods(shot.team);
       if (sm.onFire) r *= 0.85;
       if (shot.special) r *= sm.desperation ? CONFIG.rubber.despGoalieMult : 0.8;
+      if (shot.quick) r *= 0.75; // one-timers catch the goalie mid-slide — the box scoring channel
       // arcade house rules: the CPU goalie freezes on the human's release, then reacts slower
       if (this.mode === 'p1' && shot.team === this.humanTeam) {
         if (this.time - shot.t0 < this.diff.goalieDelay) return 0;
@@ -337,17 +338,19 @@ class Game {
     it.aim = Input.aimFor(p, src);
     if (Input.pressed('jump', src)) it.jump = true;
     if (Input.pressed('cut', src)) this.callCut(this.humanTeam);
+    if (Input.pressed('mod', src)) it.spin = true; // SHIFT tap = spin dodge
+    const lobMod = Input.held('turbo', src);      // SHIFT held = saucer modifier
     // LMB: quick tap = pass (switch on D), hold past the threshold = charge a shot
     const lmb = Input.held('shoot', src);
     if (Input.pressed('shoot', src)) p.lmbAt = this.time;
     it.shootHold = lmb && p.hasBall && (this.time - (p.lmbAt !== undefined ? p.lmbAt : -9)) > 0.14;
     if (p.wasLmb && !lmb && (this.time - (p.lmbAt !== undefined ? p.lmbAt : -9)) <= 0.14) {
-      if (p.hasBall || (this.ball.state === 'held' && this.ball.carrier === p)) it.pass = true;
+      if (p.hasBall || (this.ball.state === 'held' && this.ball.carrier === p)) { it.pass = true; it.passLob = lobMod; }
       else this.manualSwitch();
     }
     p.wasLmb = lmb;
     if (Input.pressed('pass', src)) { // gamepad A keeps a dedicated pass button
-      if (p.hasBall || (this.ball.state === 'held' && this.ball.carrier === p)) it.pass = true;
+      if (p.hasBall || (this.ball.state === 'held' && this.ball.carrier === p)) { it.pass = true; it.passLob = lobMod; }
       else this.manualSwitch();
     }
     if (Input.pressed('hit', src)) {
@@ -369,9 +372,10 @@ class Game {
     it.aim = Input.aimFor(p, 'pad');
     if (Input.pressed('jump', 'pad')) it.jump = true;
     if (Input.pressed('cut', 'pad')) this.callCut(t);
+    if (Input.pressed('mod', 'pad')) it.spin = true;
     it.shootHold = Input.held('shoot', 'pad') && p.hasBall;
     if (Input.pressed('pass', 'pad')) {
-      if (p.hasBall || (this.ball.state === 'held' && this.ball.carrier === p)) it.pass = true;
+      if (p.hasBall || (this.ball.state === 'held' && this.ball.carrier === p)) { it.pass = true; it.passLob = Input.held('turbo', 'pad'); }
       else this.manualSwitch2();
     }
     if (Input.pressed('hit', 'pad')) {
@@ -404,7 +408,7 @@ class Game {
   }
 
   collidePlayers() {
-    const ps = this.players;
+    const ps = this.players, BB = CONFIG.body;
     for (let i = 0; i < ps.length; i++) {
       const a = ps[i];
       if (a.state === 'benched') continue;
@@ -415,7 +419,13 @@ class Game {
         const min = a.r + b.r, d2 = dx * dx + dy * dy;
         if (d2 >= min * min || d2 < 1e-9) continue;
         const d = Math.sqrt(d2), nx = dx / d, ny = dy / d, ov = min - d;
-        const ma = 1 / a.mass, mb = 1 / b.mass, tot = ma + mb;
+        // box body play: a SET player (slow, upright) is a wall — picks and positional
+        // defense work because you cannot run through a planted body. Spinners slip it.
+        const spdA = Math.hypot(a.vel.x, a.vel.y), spdB = Math.hypot(b.vel.x, b.vel.y);
+        const setA = a.state === 'play' && spdA < BB.setSpeed;
+        const setB = b.state === 'play' && spdB < BB.setSpeed;
+        let massA = a.mass * (setA ? 3 : 1), massB = b.mass * (setB ? 3 : 1);
+        const ma = 1 / massA, mb = 1 / massB, tot = ma + mb;
         a.pos.x -= nx * ov * (ma / tot); a.pos.y -= ny * ov * (ma / tot);
         b.pos.x += nx * ov * (mb / tot); b.pos.y += ny * ov * (mb / tot);
         const rel = (b.vel.x - a.vel.x) * nx + (b.vel.y - a.vel.y) * ny;
@@ -423,7 +433,34 @@ class Game {
           const imp = rel * 0.4;
           a.vel.x += nx * imp * (ma / tot) * 2; a.vel.y += ny * imp * (ma / tot) * 2;
           b.vel.x -= nx * imp * (mb / tot) * 2; b.vel.y -= ny * imp * (mb / tot) * 2;
+          // hard contact: runner meets wall
+          this.bodyWall(a, b, nx, ny, -rel, setA, setB);
+          this.bodyWall(b, a, -nx, -ny, -rel, setB, setA);
         }
+      }
+    }
+  }
+
+  // `mover` is running into `wall` along n (pointing mover→wall). If the wall is set
+  // and the mover isn't mid-spin, kill the through-velocity and ride him to the side.
+  bodyWall(wall, mover, nx, ny, vn, wallSet, moverSet) {
+    const BB = CONFIG.body;
+    if (!wallSet || moverSet || vn < BB.hardVn) return;
+    if (mover.spinT > 0 || mover.state !== 'play') return;
+    // strip the component of mover velocity pointed INTO the wall
+    const into = mover.vel.x * -nx + mover.vel.y * -ny;
+    if (into > 0) {
+      mover.vel.x += nx * into;
+      mover.vel.y += ny * into;
+    }
+    // opponents ride the carrier toward the boards, away from the middle lane
+    if (wall.team !== mover.team && this.ball.carrier === mover) {
+      const side = mover.pos.y >= CONFIG.center.y ? 1 : -1;
+      mover.vel.y += side * BB.funnel;
+      if (vn > BB.stumbleVn) {
+        mover.staggerT = BB.staggerT;
+        Effects.burst(mover.pos.x, mover.pos.y, { n: 5, color: '#cfd6cf', spd: 110, life: 0.3, size: 2 });
+        AudioSys.thud(0.5);
       }
     }
   }
@@ -579,12 +616,30 @@ class Game {
     this.applyHit(hitter, victim, power, {});
   }
 
-  // shared takedown resolution for checks and flying tackles
+  // shared takedown resolution for checks and flying tackles.
+  // Box rule: ordinary cross-checks SHOVE you off your line (you keep your feet,
+  // usually the ball too); only big hits and tackles put bodies on the floor.
   applyHit(hitter, victim, power, opts) {
-    const H = CONFIG.hit;
+    const H = CONFIG.hit, BB = CONFIG.body;
+    if (victim.spinT > 0 && !opts.tackle) return; // spun off the check
     const late = victim.state === 'down';
     const dir = norm(victim.pos.x - hitter.pos.x, victim.pos.y - hitter.pos.y);
     const hadBall = this.ball.carrier === victim;
+    if (!opts.tackle && !late && power < BB.shovePower) {
+      victim.staggerT = BB.shoveStagger;
+      victim.vel.x += dir.x * BB.shovePush * power;
+      victim.vel.y += dir.y * BB.shovePush * power;
+      this.stats.hits[hitter.team]++;
+      AudioSys.thud(power * 0.7);
+      Effects.burst(victim.pos.x, victim.pos.y, { n: 6, color: '#ffffff', spd: 150, life: 0.3 });
+      if (hadBall && this.rng.chance(BB.shoveFumble + this.getMods(hitter.team).fumbleBonus * 0.5)) {
+        const a2 = Math.atan2(dir.y, dir.x) + this.rng.range(-0.7, 0.7);
+        this.ball.drop(Math.cos(a2) * 220, Math.sin(a2) * 220, this.rng.range(80, 200));
+        this.ball.syncPrev();
+        victim.scoopCd = 0.4;
+      }
+      return;
+    }
     victim.knockDown(dir.x, dir.y, power);
     if (hadBall) {
       const fum = H.fumbleBase + this.getMods(hitter.team).fumbleBonus + (opts.tackle ? 0.15 : 0);

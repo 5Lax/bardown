@@ -99,5 +99,18 @@ Research first (user asked for video comparison; used written/frame analysis): B
 - **Live ball:** loose balls have real vertical physics (gravity 920, restitution 0.55, bounce SFX) — fumbles pop and bounce, faceoffs toss the ball up into a scramble, rebounds kick off the pads, wide shots fall and skitter. Pickups: low ball = scoop-off-the-turf animation, high ball = reach-up snag (catchable to z 38); lob catches get the reach too.
 **Tests:** headless 5/5 PASS 0 violations; browser: booth subtitle live, ball bounce observed (vz 185), 0 errors. Frame: tools/shot-blitzlook.jpg.
 
+## Box-defense wave: walls, shoves, picks, one-timers + SHIFT moves (2026-06-11)
+From the Blitz/Blast/NHL-26 controls comparison, the two missing crossovers landed:
+- **SHIFT tap = spin dodge** (Blitz juke energy): 0.32 s spin-o-rama, slips checks AND braced bodies, beaten only by flying tackles. Needs the ball + movement; 1.1 s cooldown.
+- **SHIFT + click = saucer pass** (NHL R1): any player can now lob over the defense; CPU carriers saucer long cross-floor feeds.
+**Defense finally plays like box lacrosse** (user: "you don't run through anybody — you get knocked over or pushed down the side; it's pick-and-rolls and one-timers"):
+- **Braced bodies are walls**: a set player (speed < 60) gets 3× collision mass; running into one strips your through-velocity entirely (verified: 350 px/s carrier → 0). Defenders ride carriers toward the boards (lateral funnel), and sprinting into a wall costs a 0.38 s stumble.
+- **Two-tier contact**: checks under 1.05 power SHOVE (stagger + displacement, 18% fumble, victim keeps his feet) — knockdowns now reserved for big hits, late hits, and tackles. Floor-flopping chaos became positional physicality.
+- **Middle is a no-fly zone**: on-ball defenders check/tackle 1.6× more against lane-drivers.
+- **AI pick-and-roll**: off-ball attackers periodically plant on the on-ball defender (the wall physics make the pick mechanically real), then roll to the cage; carriers prioritize hitting the roll man (+70 pass score).
+- **One-timers are the scoring channel**: CPU rips quick releases within 0.2 s of a catch near the cage; quick-stick shots face a goalie at 0.75× reflex (caught mid-slide) with scatter tightened (quickErr 0.7, window 0.34).
+**Balance journey:** the wave initially cratered scoring to 10.5 (fumble-goals gone, drives stoned — working as intended); recovered through the box-authentic channel (pass-first AI at pressure 88 + the one-timer reflex cut) → **15.9 combined goals over an 8-game batch, every game within 1-3, two organic OTs, 8/8 finished, 0 violations.**
+**Verified in-browser:** spin trigger, saucer launch, wall stoppage (350→0), shove-vs-knockdown split, 0 console errors.
+
 ## Post-ship fix (2026-06-10)
 Main loop gained a setInterval watchdog: embedded webviews / occluded windows can suppress requestAnimationFrame entirely, which left the canvas frozen black (this is what made the in-app preview panel look dead). If rAF goes stale >250 ms, a 30 Hz timer drives the same tick(). Verified: game clock now advances in a fully hidden preview window.

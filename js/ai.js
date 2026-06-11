@@ -97,6 +97,14 @@ const AI = {
       return;
     }
 
+    // ONE-TIMER: fresh off a catch near the cage, rip it before the goalie re-sets
+    if (game.time - p.catchTime < CONFIG.pass.quickWindow * 0.6 && dNet < 320 && front > 0.3) {
+      p.ai.shooting = true;
+      p.ai.wantCharge = 0.35;
+      p.intent.shootHold = true;
+      return;
+    }
+
     if (tick) {
       const mods = game.getMods(p.team);
       // desperation dives (and the occasional showboat one)
@@ -126,12 +134,14 @@ const AI = {
           if (m === p || m.isGoalie || m.state !== 'play') continue;
           const open = this.openness(game, m);
           const mNet = dist(m.pos.x, m.pos.y, net.x, net.cy);
-          const score = open * 1.0 - mNet * 0.25 + game.rng.range(0, 25);
+          let score = open * 1.0 - mNet * 0.25 + game.rng.range(0, 25);
+          if (m.ai.cutting > 0) score += 70; // hit the roll man — that's the play
           if (open > A.openDist * 0.7 && score > bs) { bs = score; best = m; }
         }
         if (best && game.rng.chance(0.75)) {
           p.intent.pass = true;
           p.intent.passTo = best;
+          p.intent.passLob = dist(p.pos.x, p.pos.y, best.pos.x, best.pos.y) > 340 && game.rng.chance(0.6);
           return;
         }
       }
@@ -156,6 +166,21 @@ const AI = {
     const ball = game.ball;
     if (ball.state === 'pass' && ball.passTo === p) return this.moveTo(p, ball.pos.x, ball.pos.y, false);
     const A = CONFIG.ai;
+    // pick-and-roll: plant a wall on the on-ball defender, then roll to the cage
+    if (p.ai.picking > 0) {
+      p.ai.picking -= dt;
+      const def = this.onBallDefender(game, 1 - p.team);
+      const c = game.ball.carrier;
+      if (def && c) {
+        const toC = norm(c.pos.x - def.pos.x, c.pos.y - def.pos.y);
+        const px = def.pos.x + toC.x * (def.r + p.r + 2);
+        const py = def.pos.y + toC.y * (def.r + p.r + 2);
+        if (dist(p.pos.x, p.pos.y, px, py) > 14) this.moveTo(p, px, py, true);
+        // close enough: STAND — being set IS the pick, the body-wall does the rest
+      }
+      if (p.ai.picking <= 0) { p.ai.cutting = A.cutTime; p.ai.cutY = game.rng.range(-50, 50); }
+      return;
+    }
     if (p.ai.cutting > 0) {
       p.ai.cutting -= dt;
       return this.moveTo(p, net.x + net.f * 95, net.cy + (p.ai.cutY || 0), true);
@@ -166,6 +191,14 @@ const AI = {
         p.ai.cutT = game.rng.range(A.cutEvery[0], A.cutEvery[1]);
         p.ai.cutting = A.cutTime;
         p.ai.cutY = game.rng.range(-50, 50);
+      }
+      p.ai.pickT = (p.ai.pickT === undefined ? game.rng.range(2, 5) : p.ai.pickT) - CONFIG.ai.decide;
+      if (p.ai.pickT <= 0) {
+        p.ai.pickT = game.rng.range(A.pickEvery[0], A.pickEvery[1]);
+        const def = this.onBallDefender(game, 1 - p.team);
+        if (def && dist(p.pos.x, p.pos.y, def.pos.x, def.pos.y) < 280 && game.rng.chance(0.7)) {
+          p.ai.picking = A.pickTime;
+        }
       }
       const slot = this.slots(net)[p.idx % 5];
       p.ai.spot = { x: slot.x + game.rng.range(-22, 22), y: slot.y + game.rng.range(-22, 22) };
@@ -185,10 +218,12 @@ const AI = {
       p.intent.aim = { x: c.pos.x - p.pos.x, y: c.pos.y - p.pos.y };
       if (game.hitsEnabled && tick) {
         const d = dist(p.pos.x, p.pos.y, c.pos.x, c.pos.y);
-        if (d > 50 && d < 105 && p.tackleCd <= 0 && game.rng.chance(0.09 * game.aiAggro(p.team))) {
+        // the middle of the floor is a no-fly zone: defenders punish lane-drivers hardest
+        const laneMult = Math.abs(c.pos.y - CONFIG.center.y) < 130 ? 1.6 : 1;
+        if (d > 50 && d < 105 && p.tackleCd <= 0 && game.rng.chance(0.09 * game.aiAggro(p.team) * laneMult)) {
           p.intent.aim = { x: c.pos.x - p.pos.x, y: c.pos.y - p.pos.y };
           p.intent.tackle = true;
-        } else if (d < A.hitRange + 14 && game.rng.chance(A.hitAggro * game.aiAggro(p.team))) p.intent.hit = true;
+        } else if (d < A.hitRange + 14 && game.rng.chance(A.hitAggro * game.aiAggro(p.team) * laneMult)) p.intent.hit = true;
       }
       return;
     }

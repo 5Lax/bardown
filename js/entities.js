@@ -14,13 +14,14 @@ class Player {
     this.charge = 0; this.charging = false; this.pendingSpecial = null;
     this.hitCd = 0; this.scoopCd = 0; this.knockT = 0; this.diveT = 0; this.benchT = 0;
     this.tackleT = 0; this.tackleCd = 0;
+    this.spinT = 0; this.spinCd = 0; this.staggerT = 0;
     this.catchTime = -99; this.lastAim = null; this.controlled = false;
     this.scoopAnim = 0; this.catchAnim = 0;
     this.ai = { decideT: 0, spot: null, cutT: 0, cutting: 0, plan: 'drive', chargeAim: 0, wantCharge: 0.7, holdT: 0 };
     this.resetIntent();
   }
   resetIntent() {
-    this.intent = { mx: 0, my: 0, aim: null, turbo: false, pass: false, passTo: null, shootHold: false, hit: false, jump: false, tackle: false };
+    this.intent = { mx: 0, my: 0, aim: null, turbo: false, pass: false, passTo: null, passLob: false, shootHold: false, hit: false, jump: false, tackle: false, spin: false };
   }
   get hasBall() { return this.game.ball.carrier === this; }
 
@@ -43,6 +44,9 @@ class Player {
     this.tackleCd = Math.max(0, this.tackleCd - dt);
     this.scoopAnim = Math.max(0, this.scoopAnim - dt);
     this.catchAnim = Math.max(0, this.catchAnim - dt);
+    this.spinT = Math.max(0, this.spinT - dt);
+    this.spinCd = Math.max(0, this.spinCd - dt);
+    this.staggerT = Math.max(0, this.staggerT - dt);
 
     if (this.state === 'benched') { this.vel.x = this.vel.y = 0; return; }
 
@@ -106,9 +110,20 @@ class Player {
       }
     }
 
+    // spin dodge: slip through contact for a beat (tackles still get you)
+    if (it.spin && this.hasBall && this.spinCd <= 0 && this.state === 'play'
+        && Math.hypot(this.vel.x, this.vel.y) > CONFIG.spin.minSpeed) {
+      this.spinT = CONFIG.spin.time;
+      this.spinCd = CONFIG.spin.cd;
+      this.vel.x *= CONFIG.spin.boost;
+      this.vel.y *= CONFIG.spin.boost;
+      AudioSys.jumpSfx();
+    }
+
     // movement
     let maxSpd = P.maxSpeed * this.teamDef.spd * mods.speed * (mods.onFire ? CONFIG.fire.speed : 1);
     let accel = P.accel;
+    if (this.staggerT > 0) { accel *= 0.45; maxSpd *= 0.75; } // bodied: legs gone for a beat
     if (this.charging) maxSpd *= P.chargeSlow;
     if (this.hasBall) maxSpd *= P.carrySlow;
     if (this.isGoalie) maxSpd = CONFIG.goalie.reflexSpeed; // the real save-or-goal dial
@@ -143,7 +158,7 @@ class Player {
       }
       if (it.pass) {
         if (this.charging && g.specialsEnabled) { this.pendingSpecial = 'btb'; }
-        else if (!this.charging) g.tryPass(this, it.passTo);
+        else if (!this.charging) g.tryPass(this, it.passTo, it.passLob);
       }
       if (it.hit && this.charging && g.specialsEnabled)
         this.pendingSpecial = Math.hypot(this.vel.x, this.vel.y) > 100 ? 'btb' : 'btl';

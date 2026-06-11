@@ -22,14 +22,20 @@ const CONFIG = {
   jump: { v0: 255, grav: 780, dodgeZ: 10 },
   // double right-click: launch horizontally and pancake whoever you touch. Whiff = you eat floor.
   tackle: { window: 0.35, cd: 1.3, speed: 560, time: 0.5, power: 1.55, selfDown: 0.4 },
+  // SHIFT tap: spin dodge — slips checks and braced bodies, but NOT flying tackles
+  spin: { time: 0.32, cd: 1.1, boost: 1.18, minSpeed: 80 },
+  // box-lacrosse body play: a set player is a wall. Sprint into one and you stop,
+  // get ridden toward the boards, or stumble. This is also what makes picks work.
+  body: { setSpeed: 60, hardVn: 140, stumbleVn: 320, staggerT: 0.38, funnel: 85,
+          shovePower: 1.05, shovePush: 340, shoveFumble: 0.18, shoveStagger: 0.4 },
   goalie: {
     r: 19, coverW: 52, coverH: 47, bodyH: 34, arcR: 30, maxLateral: 36,
-    reflexSpeed: 228, holdTime: 0.85, roamR: 86, mass: 1.7,
+    reflexSpeed: 216, holdTime: 0.85, roamR: 86, mass: 1.7,
   },
 
   pass: {
     speed: 1060, homing: 10, catchR: 26, lead: 0.55, cone: 0.25,
-    quickWindow: 0.28, quickSpeed: 1.3, quickErr: 0.85, interceptR: 12, interceptP: 0.5,
+    quickWindow: 0.34, quickSpeed: 1.3, quickErr: 0.7, interceptR: 12, interceptP: 0.5,
     lobPeak: 62, lobSafeZ: 26, launchGrace: 0.05, // lobs sail over heads; passes can't be picked right at the stick
   },
   shot: {
@@ -64,8 +70,9 @@ const CONFIG = {
   ai: {
     decide: 0.13, reactBase: 0.10,
     shootRange: 350, shootQuality: 0.36, forceShotAt: 3.2,
-    passPressure: 70, openDist: 85, cutEvery: [2.5, 6.0], cutTime: 1.0,
-    hitRange: 44, hitAggro: 0.28, offBallAggro: 0.12, defGap: 30, chasePair: 2,
+    passPressure: 88, openDist: 85, cutEvery: [2.5, 6.0], cutTime: 1.0,
+    hitRange: 44, hitAggro: 0.28, offBallAggro: 0.12, defGap: 34, chasePair: 2,
+    pickEvery: [4, 8], pickTime: 1.2,
     cpuChargeMin: 0.5, cpuChargeMax: 0.95, turboUseAt: 35,
   },
 

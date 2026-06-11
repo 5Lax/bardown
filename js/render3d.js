@@ -628,6 +628,7 @@ const Render3D = {
     }
 
     g.rotation.set(0, -p.facing, 0);
+    if (p.spinT > 0) g.rotation.y += (1 - p.spinT / CONFIG.spin.time) * Math.PI * 2; // spin-o-rama
     // Blitz gait: huge strides, fast cycle, big bounce, hard sprint lean
     rig.phase += spd * dt * 0.072;
     const runK = clamp(spd / 280, 0, 1);
@@ -897,6 +898,7 @@ const Render3D = {
         turboActive: false, controlled: false,
         savePose: p.savePose || 0, saveSide: p.saveSide || 1,
         scoopAnim: p.scoopAnim || 0, catchAnim: p.catchAnim || 0,
+        spinT: p.spinT || 0, staggerT: p.staggerT || 0,
         __hasBall: game.ball.carrier === p,
       })),
     };
