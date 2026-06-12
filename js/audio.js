@@ -133,8 +133,27 @@ const AudioSys = {
   },
   excite(level) { this.crowdTarget = Math.min(0.30, 0.06 + level * 0.22); },
 
-  // simple synthwave loop: bass 8ths + hats, scheduled ~100ms ahead
+  // heroic adventure loop, G major @ 140 — plucky dual-triangle lead over warm bass
+  // and a soft timpani pulse. Fun and mythical, zero assets.
   music(enabled) { this.musicOn = enabled; },
+  buildTune() {
+    // [freq, eighth-notes]; 0 = rest. Two 4-bar phrases (64 eighths total).
+    const N = { G3: 196, A3: 220, B3: 246.9, C4: 261.6, D4: 293.7, E4: 329.6, Fs4: 370, G4: 392, A4: 440, B4: 493.9, C5: 523.3, D5: 587.3, E5: 659.3, Fs5: 740, G5: 784 };
+    const phrase = [
+      [N.G4, 2], [N.B4, 1], [N.D5, 1], [N.G5, 2], [N.Fs5, 1], [N.E5, 1],
+      [N.D5, 3], [N.C5, 1], [N.B4, 2], [N.A4, 2],
+      [N.B4, 2], [N.C5, 1], [N.D5, 1], [N.E5, 2], [N.C5, 2],
+      [N.D5, 6], [0, 2],
+      [N.E5, 2], [N.Fs5, 1], [N.G5, 1], [N.Fs5, 2], [N.E5, 1], [N.D5, 1],
+      [N.E5, 3], [N.D5, 1], [N.C5, 2], [N.B4, 2],
+      [N.A4, 2], [N.B4, 1], [N.C5, 1], [N.B4, 2], [N.A4, 2],
+      [N.G4, 6], [0, 2],
+    ];
+    this.melodyMap = new Array(64).fill(null);
+    let at = 0;
+    for (const [f, d] of phrase) { if (f) this.melodyMap[at % 64] = { f, d }; at += d; }
+    this.bassBars = [98, 130.8, 98, 146.8, 130.8, 110, 146.8, 98]; // G C G D | C A D G
+  },
   update(dt) {
     if (!this.ctx) return;
     if (this.crowdGain) {
@@ -143,14 +162,24 @@ const AudioSys = {
       this.crowdTarget = Math.max(0.0, this.crowdTarget - dt * 0.12);
     }
     if (!this.musicOn || this.muted) return;
-    const step = 60 / 126 / 2; // 8th notes at 126bpm
-    const BASS = [55, 55, 65.4, 55, 49, 49, 58.3, 49];
+    if (!this.melodyMap) this.buildTune();
+    const step = 60 / 140 / 2; // 8ths at 140bpm
     while (this.musicNext < this.t() + 0.12) {
       const t0 = Math.max(this.musicNext, this.t());
-      const i = this.musicStep % 8;
-      this.osc('square', BASS[i], BASS[i], t0, step * 0.9, 0.045);
-      if (i % 2 === 0) this.noise(t0, 0.03, 0.035, 'highpass', 6000, 6000, 1);
-      if (i === 4) this.noise(t0, 0.09, 0.05, 'bandpass', 1800, 900, 1);
+      const i = this.musicStep % 64;
+      const note = this.melodyMap[i];
+      if (note) {
+        const dur = note.d * step;
+        this.osc('triangle', note.f, note.f, t0, dur * 1.05, 0.06);
+        this.osc('triangle', note.f * 1.003, note.f * 1.003, t0, dur, 0.03); // chorus shimmer
+      }
+      if (i % 8 === 0) {
+        const root = this.bassBars[Math.floor(i / 8) % 8];
+        this.osc('triangle', root, root, t0, step * 7, 0.05);
+        this.osc('sine', root / 2, root / 2, t0, step * 3, 0.05);
+      }
+      if (i % 4 === 2) this.osc('sine', 82, 60, t0, 0.1, 0.05); // soft timpani pulse
+      if (i % 2 === 1) this.noise(t0, 0.025, 0.018, 'highpass', 7000, 7000, 1);
       this.musicNext = (this.musicNext || this.t()) + step;
       this.musicStep++;
     }

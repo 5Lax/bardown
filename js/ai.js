@@ -115,12 +115,16 @@ const AI = {
       const press = this.openness(game, p);
       // hop an incoming check when a defender is breathing on you
       if (press < 46 && p.jumpZ === 0 && game.rng.chance(0.16)) p.intent.jump = true;
+      // wandering goalie = open cage: bomb it from anywhere
+      const oppGoalie = game.goalies[1 - p.team];
+      const cageOpen = oppGoalie.state !== 'play' || dist(oppGoalie.pos.x, oppGoalie.pos.y, net.x, net.cy) > 220;
       const q = (1 - dNet / 560) * 0.62
         + clamp(front, 0, 1) * 0.30
         - (press < 55 ? 0.18 : 0)
+        + (cageOpen ? 0.5 : 0)
         + game.rng.range(-0.08, 0.08);
       const clockPanic = game.shotClock < A.forceShotAt;
-      if ((q > A.shootQuality && dNet < A.shootRange && front > 0.2) || (clockPanic && front > 0)) {
+      if ((q > A.shootQuality && dNet < (cageOpen ? 1100 : A.shootRange) && front > 0.2) || (clockPanic && front > 0)) {
         p.ai.shooting = true;
         p.ai.wantCharge = clockPanic ? 0.55 : game.rng.range(A.cpuChargeMin, A.cpuChargeMax);
         if (game.specialsEnabled && game.rng.chance(mods.desperation ? 0.55 : 0.08))
@@ -245,10 +249,23 @@ const AI = {
 
   goalie(game, p, dt, tick) {
     const net = game.defendNet(p.team), G = CONFIG.goalie, ball = game.ball;
+    // mid-windup on a full-court bomb
+    if (p.ai.shooting) {
+      p.intent.shootHold = p.charge < p.ai.wantCharge;
+      if (!p.charging && p.charge === 0 && !p.intent.shootHold) p.ai.shooting = false;
+      return;
+    }
     if (ball.state === 'held' && ball.carrier === p) {
       p.holdT += dt;
       p.intent.aim = { x: net.f, y: 0 };
-      // campers force a fast outlet; the lob (automatic for goalies) sails over them
+      // once in a while the goalie just RIPS one at the other end
+      if (tick && p.holdT > 0.4 && game.shotClock > 24 && game.rng.chance(G.bombChance)) {
+        p.ai.shooting = true;
+        p.ai.wantCharge = 1;
+        p.intent.shootHold = true;
+        return;
+      }
+      // campers force a fast outlet; the rainbow lob sails over them
       const pressured = this.openness(game, p) < 75;
       if (p.holdT > (pressured ? 0.3 : G.holdTime)) {
         let best = null, bs = -1e9;
@@ -264,10 +281,20 @@ const AI = {
       }
       return;
     }
-    // loose ball in my crease: scoop it
-    if (ball.state === 'loose' && dist(ball.pos.x, ball.pos.y, net.x, net.cy) < CONFIG.crease.r) {
-      return this.moveTo(p, ball.pos.x, ball.pos.y, false);
+    // loose ball: scoop in the crease, or come OUT for an uncontested one down the side
+    if (ball.state === 'loose') {
+      const dBallNet = dist(ball.pos.x, ball.pos.y, net.x, net.cy);
+      if (dBallNet < CONFIG.crease.r) { p.retrieving = false; return this.moveTo(p, ball.pos.x, ball.pos.y, false); }
+      let oppNear = false;
+      for (const o of game.teams[1 - p.team]) {
+        if (o.state === 'play' && dist(o.pos.x, o.pos.y, ball.pos.x, ball.pos.y) < 200) { oppNear = true; break; }
+      }
+      if (dBallNet < G.retrieveR - 30 && !oppNear) {
+        p.retrieving = true;
+        return this.moveTo(p, ball.pos.x, ball.pos.y, true);
+      }
     }
+    p.retrieving = false;
     // square up: arc position toward the ball, slide to predicted shot target
     let ty = ball.pos.y, tx = ball.pos.x;
     let reflex = 1;

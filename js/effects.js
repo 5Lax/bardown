@@ -20,6 +20,7 @@ const ANNOUNCER = {
   powerplay: ['POWER PLAY!', 'HE\'S IN THE BOX!'],
   steal:     ['PICKED OFF!', 'INTERCEPTED!'],
   ot:        ['OVERTIME — NEXT GOAL WINS!'],
+  goalieGoal:['GOALIE GOOOOAL?!', 'THE KEEPER SCORES!!', 'FULL COURT. BY THE GOALIE.'],
 };
 
 // the color analyst's follow-up lines — fired a beat after the play-by-play call
@@ -36,6 +37,7 @@ const BANTER = {
   desperation: ['Down five? Time to throw the kitchen sink. And the dishes.'],
   shotclock: ['You have thirty seconds for a reason, gentlemen.'],
   quick:     ['Catch and release! Like a fishing show, but violent.'],
+  goalieGoal: ['I have called games for thirty years and I have never. Seen. That.', 'Somebody check what they put in his water bottle.', 'The other goalie may simply retire.'],
 };
 
 const Effects = {
@@ -55,7 +57,7 @@ const Effects = {
     });
     if (this.popups.length > 4) this.popups.shift();
   },
-  VOICED: new Set(['goal', 'bardown', 'fire', 'special', 'noGoal', 'powerplay', 'ot', 'desperation', 'tackle', 'bigsave', 'bighit']),
+  VOICED: new Set(['goal', 'bardown', 'fire', 'special', 'noGoal', 'powerplay', 'ot', 'desperation', 'tackle', 'bigsave', 'bighit', 'goalieGoal']),
   announce(kind, opts = {}) {
     const lines = ANNOUNCER[kind];
     if (!lines) return;

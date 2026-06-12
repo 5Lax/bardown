@@ -2,8 +2,9 @@
 const CONFIG = {
   canvas: { w: 1280, h: 720 },
 
-  // bigger floor, same center (640,415) so world offsets stay valid; classic 2D fit-scales
-  rink: { x: -80, y: 95, w: 1440, h: 640, corner: 125, restitution: 0.72 },
+  // Blast-scale floor — takes real time to traverse. Same center (640,415) so world
+  // offsets stay valid; classic 2D fit-scales; render3d derives everything from this.
+  rink: { x: -260, y: 15, w: 1800, h: 800, corner: 150, restitution: 0.72 },
 
   net:   { inset: 110, mouthW: 84, mouthH: 52, depth: 24, postR: 5 },
   // z bands at the goal plane: 0..barLo clean (goalie may block), barLo..barIn = in off the iron
@@ -30,13 +31,14 @@ const CONFIG = {
           shovePower: 1.05, shovePush: 340, shoveFumble: 0.18, shoveStagger: 0.4 },
   goalie: {
     r: 19, coverW: 52, coverH: 47, bodyH: 34, arcR: 30, maxLateral: 36,
-    reflexSpeed: 216, holdTime: 0.85, roamR: 86, mass: 1.7,
+    reflexSpeed: 208, holdTime: 0.85, roamR: 86, retrieveR: 380, bombChance: 0.03, mass: 1.7,
   },
 
   pass: {
-    speed: 1060, homing: 10, catchR: 26, lead: 0.55, cone: 0.25,
-    quickWindow: 0.34, quickSpeed: 1.3, quickErr: 0.7, interceptR: 12, interceptP: 0.5,
-    lobPeak: 62, lobSafeZ: 26, launchGrace: 0.05, // lobs sail over heads; passes can't be picked right at the stick
+    speed: 1180, homing: 10, catchR: 26, lead: 0.55, cone: 0.25,
+    quickWindow: 0.34, quickSpeed: 1.3, quickErr: 0.7, interceptR: 16, interceptP: 0.62,
+    // EVERY pass arcs now: base = normal feed, high = SHIFT saucer, goalie = rainbow outlet
+    lobPeakBase: 46, lobPeakHigh: 78, lobPeakGoalie: 105, lobSafeZ: 34, launchGrace: 0.05,
   },
   shot: {
     minSpeed: 850, maxSpeed: 1400, chargeTime: 0.5, z0: 12,

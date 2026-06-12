@@ -942,7 +942,11 @@ class Game {
     b.vel.x = -net.f * 60; b.vel.y = 0;
     b.syncPrev();
     this.possession = -1;
-    if (bardown) {
+    if (shot && shot.shooter && shot.shooter.isGoalie && shot.shooter.team === team) {
+      AudioSys.bardown();
+      Effects.announce('goalieGoal', { size: 64, color: '#ffd24a', life: 2.6 });
+      Effects.addShake(12);
+    } else if (bardown) {
       AudioSys.bardown();
       Effects.announce('bardown', { size: 66, color: '#ffd24a', life: 2.0 });
     } else if (shot && shot.special) {

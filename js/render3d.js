@@ -22,7 +22,7 @@ const Render3D = {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     this.renderer.setClearColor(0x0b0d12);
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(0x0b0d12, 1500, 2700);
+    this.scene.fog = new THREE.Fog(0x0b0d12, 1900, 3400);
     this.camera = new THREE.PerspectiveCamera(46, CONFIG.canvas.w / CONFIG.canvas.h, 10, 4000);
     this.camera.position.set(-500, 290, 0);
     this.camTarget = new THREE.Vector3(0, 12, 0);
@@ -848,8 +848,8 @@ const Render3D = {
     const rw = CONFIG.rink.w / 2, rh = CONFIG.rink.h / 2;
     const bx = clamp(b.pos.x - 640, -rw, rw);
     const bz = clamp(b.pos.y - 415, -rh, rh);
-    const want = new THREE.Vector3(clamp(bx - 385, -(rw + 110), rw - 510), 318, bz * 0.28);
-    const wantT = new THREE.Vector3(clamp(bx + 165, -(rw - 60), rw - 25), 10, clamp(bz * 0.62, -(rh - 70), rh - 70));
+    const want = new THREE.Vector3(clamp(bx - 430, -(rw + 120), rw - 560), 352, bz * 0.28);
+    const wantT = new THREE.Vector3(clamp(bx + 185, -(rw - 60), rw - 25), 10, clamp(bz * 0.62, -(rh - 80), rh - 80));
     const k = Math.min(1, dt * 3.4);
     this.camPos.lerp(want, k);
     this.camTarget.lerp(wantT, k);

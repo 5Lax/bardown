@@ -219,18 +219,26 @@ class Player {
 }
 
 class Goalie extends Player {
-  constructor(game, team) { super(game, team, 5, true); this.holdT = 0; this.manual = false; this.savePose = 0; this.saveSide = 1; }
+  constructor(game, team) {
+    super(game, team, 5, true);
+    this.holdT = 0; this.manual = false; this.savePose = 0; this.saveSide = 1;
+    this.retrieving = false;
+  }
   update(dt) {
     this.savePose = Math.max(0, this.savePose - dt);
     super.update(dt);
     if (this.state !== 'play') return;
-    // tethered to the crease (even under manual control)
+    // soft tether: AI goalies get pulled home (longer leash while retrieving a loose
+    // ball); a manually-controlled goalie can wander the whole floor — his net is open.
+    if (this.manual) return;
     const net = this.game.defendNet(this.team), G = CONFIG.goalie;
+    const lim = this.retrieving ? G.retrieveR : G.roamR;
     const d = dist(this.pos.x, this.pos.y, net.x, net.cy);
-    if (d > G.roamR) {
+    if (d > lim) {
       const n = norm(this.pos.x - net.x, this.pos.y - net.cy);
-      this.pos.x = net.x + n.x * G.roamR;
-      this.pos.y = net.cy + n.y * G.roamR;
+      const pull = Math.min(d - lim, 260 * dt);
+      this.pos.x -= n.x * pull;
+      this.pos.y -= n.y * pull;
     }
   }
 }
@@ -246,6 +254,7 @@ class Ball {
     this.carrier = null; this.passTo = null; this.passTeam = -1;
     this.shot = null; this.lastTouchTeam = -1; this.lastTouch = null;
     this.lob = false; this.passT = 0; this.lobT = 0.3;
+    this.lobPeak = 46;
     this.vz = 0;
   }
   syncPrev() { this.prev.x = this.pos.x; this.prev.y = this.pos.y; }
@@ -274,7 +283,7 @@ class Ball {
     this.vel.x = vx; this.vel.y = vy;
     if (vz !== undefined) this.vz = vz;
   }
-  launchPass(from, to, lead, lob) {
+  launchPass(from, to, lead, high) {
     const S = CONFIG.pass;
     this.carrier = null; this.state = 'pass';
     this.passTo = to; this.passTeam = from.team;
@@ -282,7 +291,9 @@ class Ball {
     const d = norm(lead.x - this.pos.x, lead.y - this.pos.y);
     this.vel.x = d.x * S.speed; this.vel.y = d.y * S.speed;
     this.z = 12;
-    this.lob = !!lob;
+    // every pass arcs like a real feed; goalies throw rainbows, SHIFT throws saucers
+    this.lob = true;
+    this.lobPeak = from.isGoalie ? S.lobPeakGoalie : (high ? S.lobPeakHigh : S.lobPeakBase);
     this.passT = 0;
     this.lobT = Math.max(0.25, dist(this.pos.x, this.pos.y, lead.x, lead.y) / S.speed);
   }
@@ -337,7 +348,7 @@ class Ball {
           this.state = 'loose'; this.passTo = null; break;
         }
         this.passT += dt;
-        this.z = this.lob ? 12 + Math.sin(clamp(this.passT / this.lobT, 0, 1) * Math.PI) * CONFIG.pass.lobPeak : 12;
+        this.z = 12 + Math.sin(clamp(this.passT / this.lobT, 0, 1) * Math.PI) * (this.lobPeak || CONFIG.pass.lobPeakBase);
         const dd = dist(this.pos.x, this.pos.y, t.pos.x, t.pos.y);
         const lead = {
           x: t.pos.x + t.vel.x * S.lead * (dd / S.speed),
