@@ -485,6 +485,13 @@ const Render = {
       ctx.fillStyle = 'rgba(159,176,192,0.7)';
       ctx.fillText('CPU vs CPU', cx, C.h - 14);
     }
+    if (AudioSys.muted && !game.over && !game.paused) {
+      ctx.font = '700 13px Arial';
+      ctx.fillStyle = 'rgba(159,176,192,0.55)';
+      ctx.textAlign = 'right';
+      ctx.fillText('🔇 M = sound on', C.w - 16, C.h - 14);
+      ctx.textAlign = 'center';
+    }
   },
 
   title(ctx, app) {

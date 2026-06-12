@@ -2,7 +2,7 @@
 // no-op cleanly when ctx is null (headless Node, or before first user gesture).
 const AudioSys = {
   ctx: null, master: null, noiseBuf: null, crowdGain: null, crowdTarget: 0.06,
-  musicOn: true, musicNext: 0, musicStep: 0, muted: false,
+  musicOn: true, musicNext: 0, musicStep: 0, muted: true, // silent by default — M opts in
 
   init() {
     if (this.ctx || !HAS_DOM) return;
@@ -19,7 +19,8 @@ const AudioSys = {
       const data = this.noiseBuf.getChannelData(0);
       for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
       this.startCrowd();
-      try { this.muted = localStorage.getItem('bardown_mute') === '1'; } catch (e) {}
+      // muted unless the user has explicitly unmuted before
+      try { this.muted = localStorage.getItem('bardown_mute') !== '0'; } catch (e) {}
       this.master.gain.value = this.muted ? 0 : 0.55;
     } catch (e) { this.ctx = null; }
   },
