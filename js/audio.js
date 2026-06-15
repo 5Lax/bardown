@@ -19,6 +19,9 @@ const AudioSys = {
       const data = this.noiseBuf.getChannelData(0);
       for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
       this.startCrowd();
+      // browser TTS voices load asynchronously — grab them now and again when they arrive
+      this.pickVoices();
+      try { if (typeof speechSynthesis !== 'undefined') speechSynthesis.onvoiceschanged = () => this.pickVoices(); } catch (e) {}
       // muted unless the user has explicitly unmuted before
       try { this.muted = localStorage.getItem('bardown_mute') !== '0'; } catch (e) {}
       this.master.gain.value = this.muted ? 0 : 0.55;
@@ -85,17 +88,26 @@ const AudioSys = {
   bounce(k) { if (!this.ctx || this.muted) return; this.osc('sine', 240 + k * 120, 140, this.t(), 0.06, 0.07 + k * 0.06); },
   jumpSfx() { if (!this.ctx || this.muted) return; this.noise(this.t(), 0.09, 0.1, 'bandpass', 500, 1500, 2); },
 
-  // two-man booth via speech synthesis: voice 1 = hype play-by-play (interrupts himself
-  // like the real thing), voice 2 = wry color analyst (waits his turn, then quips)
+  // two-man broadcast booth via speech synthesis: voice 1 = play-by-play (deep, gravelly,
+  // rides the call), voice 2 = wry color analyst (waits his turn, then quips). TTS can't be
+  // a real person, but voice ranking + dramatic pacing + a crowd swell sell the broadcast feel.
   voiceA: null, voiceB: null,
+  // ranked best-to-worst by how much each reads as a deep North-American sportscaster
+  PBP_PREF: ['google uk english male', 'microsoft guy', 'microsoft david', 'daniel', 'arthur',
+             'microsoft mark', 'fred', 'google us english', 'aaron', 'reed'],
+  COLOR_PREF: ['microsoft david', 'microsoft mark', 'rishi', 'microsoft guy', 'oliver', 'tom', 'alex', 'eric'],
   pickVoices() {
     if (!HAS_DOM || typeof speechSynthesis === 'undefined') return;
     try {
       const vs = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
       if (!vs.length) return;
-      this.voiceA = vs.find(v => /david|mark|daniel|male/i.test(v.name)) || vs[0];
-      this.voiceB = vs.find(v => v !== this.voiceA && /guy|james|rich|george|alex|fred/i.test(v.name))
-        || vs.find(v => v !== this.voiceA) || vs[0];
+      const rank = (pref) => {
+        for (const name of pref) { const m = vs.find(v => v.name.toLowerCase().includes(name)); if (m) return m; }
+        return null;
+      };
+      this.voiceA = rank(this.PBP_PREF) || vs.find(v => /male|man|guy/i.test(v.name)) || vs[0];
+      this.voiceB = rank(this.COLOR_PREF.filter(n => !this.voiceA || !this.voiceA.name.toLowerCase().includes(n)))
+        || vs.find(v => v !== this.voiceA) || this.voiceA;
     } catch (e) {}
   },
   say(text, who) {
@@ -105,13 +117,17 @@ const AudioSys = {
       if (who === 2) {
         if (speechSynthesis.speaking) return; // the analyst doesn't talk over the call
       } else if (speechSynthesis.speaking) speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text.replace(/!+/g, '!').replace(/—/g, ', '));
+      const u = new SpeechSynthesisUtterance(text.replace(/—/g, ', ').replace(/!+/g, '!'));
       if (who === 2) {
         if (this.voiceB) u.voice = this.voiceB;
-        u.rate = 1.12; u.pitch = 1.0; u.volume = 0.85;
+        u.rate = 1.06; u.pitch = 0.92; u.volume = 0.9;       // analyst: dry, conversational
       } else {
         if (this.voiceA) u.voice = this.voiceA;
-        u.rate = 1.28; u.pitch = 0.62; u.volume = 0.9;
+        // play-by-play is always amped — deep but lifted, paced so the call lands
+        const big = /!|GOAL|SCORE|BARDOWN/i.test(text);
+        u.rate = big ? 1.0 : 1.18;
+        u.pitch = 0.76; u.volume = 1.0;
+        this.excite(1.0);                                     // crowd roars under every call
       }
       speechSynthesis.speak(u);
     } catch (e) {}
