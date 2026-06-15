@@ -9,7 +9,8 @@ const ANNOUNCER = {
   bighit:    ['CROSSCHECK CITY!', 'DEMOLISHED!!', 'INTO ORBIT!', 'CALL THE MAYOR — HE\'S GONE!'],
   tackle:    ['TRUCKED!!', 'PANCAKED!', 'FULL EXTENSION!', 'SEE YA!', 'BODIED INTO NEXT WEEK!'],
   latehit:   ['LATE HIT!', 'AFTER THE WHISTLE!', 'CHEAP SHOT!'],
-  fire:      ['HE\'S ON FIRE!', 'THE WHOLE TEAM IS ON FIRE!!'],
+  fire:      ['HE\'S ON FIRE!', 'BOOMSHAKALAKA!', 'HE\'S HEATED UP — LITERALLY!'],
+  heatup:    ['HEATING UP!', 'HE\'S FEELING IT!', 'TWO IN A ROW!'],
   fireout:   ['FIRE EXTINGUISHED'],
   shotclock: ['SHOT CLOCK VIOLATION!', 'TOO SLOW!'],
   faceoff:   ['FACEOFF!'],
@@ -31,7 +32,8 @@ const BANTER = {
   bighit:    ['The boards felt that one.', 'He left his soul at center floor.', 'Clean up on aisle five.'],
   save:      ['Highway robbery!', 'He had no business saving that.'],
   bigsave:   ['Call the police, because that was a robbery.', 'The kid is a wall with legs.'],
-  fire:      ['Somebody call the fire marshal.', 'He is cooking with the whole stove now.'],
+  fire:      ['Somebody call the fire marshal.', 'He is cooking with the whole stove now.', 'The net is going to need an insurance claim.'],
+  heatup:    ['He is starting to feel it now.', 'One more and he is cooking.'],
   powerplay: ['Off to the sin bin.', 'You cannot just truck the goalie. Well, you can. It is just illegal.'],
   noGoal:    ['The crease giveth, and the crease taketh away.', 'Great goal. Illegal, but great.'],
   desperation: ['Down five? Time to throw the kitchen sink. And the dishes.'],
@@ -57,7 +59,7 @@ const Effects = {
     });
     if (this.popups.length > 4) this.popups.shift();
   },
-  VOICED: new Set(['goal', 'bardown', 'fire', 'special', 'noGoal', 'powerplay', 'ot', 'desperation', 'tackle', 'bigsave', 'bighit', 'goalieGoal']),
+  VOICED: new Set(['goal', 'bardown', 'fire', 'heatup', 'special', 'noGoal', 'powerplay', 'ot', 'desperation', 'tackle', 'bigsave', 'bighit', 'goalieGoal']),
   announce(kind, opts = {}) {
     const lines = ANNOUNCER[kind];
     if (!lines) return;

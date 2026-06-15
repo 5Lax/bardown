@@ -60,7 +60,9 @@ Camera: Blast-Lacrosse end view — parked behind the human end, floor runs up-s
 - **Stoppage mayhem**: `stepAction` runs during `goal` and `break` states (no clocks) — after-whistle hits/tackles are intentional.
 - **Difficulty**: `CONFIG.difficulty[ROOKIE|ARCADE|INSANE]` → `game.diff`; gates 1P house rules + CPU reaction/aggression. CPU-vs-CPU and 2P never use assists.
 - **2P local**: Input is source-split — `held/pressed/move/aimFor` take `'kbm'|'pad'|'all'`. P1 = keyboard+mouse, P2 = first gamepad (`game.controlled2`, `applyHumanIntent2`). In 1P, sources merge ('all').
-- **Goal replay**: view-side only — `Render3D.history` ring buffer of snapshots; `renderReplay` re-poses the same rigs from proxy objects (`__hasBall` override in syncRig) behind-the-net at 0.45×. Sim never pauses. Letterbox + REPLAY stamp drawn by `Render.overlays`.
+- **Goal replay**: view-side only — `Render3D.history` ring buffer of snapshots; `renderReplay` re-poses the same rigs from proxy objects (`__hasBall` override in syncRig) at 0.45×, with a **cinematic cam that sweeps across the goal mouth and dollies in** (`rp.side` captured at trigger). Sim never pauses. Letterbox + REPLAY stamp drawn by `Render.overlays`.
+- **Fire (two systems)**: team ON FIRE (`game.fire[team]`, 3 unanswered) + **NBA-Jam individual hot hand** (`player.heat`/`player.onFire`, 3 personal goals in a row → flaming ball, near-unmissable shots via `fire.playerShotErr/Speed/GoalieReflex`; resets when the opponent scores). `Effects.announce('heatup'|'fire')`. Both drive the jersey/ball glow in render3d.
+- **Tuning**: every gameplay number is in `js/config.js`; [`TUNING.md`](TUNING.md) maps the main knobs → effect; `BARDOWN.physics()` consoles current values.
 - **Playoffs**: bracket state machine lives in main.js (`buildBracket`/`advanceBracket`); non-user games sim via strength-weighted coin flip; user is always slot 0 / team 0.
 - **Voice announcer**: `AudioSys.say` (speechSynthesis, guarded) fires for `Effects.VOICED` event kinds only.
 

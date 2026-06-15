@@ -17,6 +17,7 @@ class Player {
     this.spinT = 0; this.spinCd = 0; this.staggerT = 0;
     this.catchTime = -99; this.lastAim = null; this.controlled = false;
     this.scoopAnim = 0; this.catchAnim = 0;
+    this.heat = 0; this.onFire = false; // NBA-Jam personal hot streak
     this.ai = { decideT: 0, spot: null, cutT: 0, cutting: 0, plan: 'drive', chargeAim: 0, wantCharge: 0.7, holdT: 0 };
     this.resetIntent();
   }

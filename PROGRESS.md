@@ -130,5 +130,12 @@ From the Blitz/Blast/NHL-26 controls comparison, the two missing crossovers land
 - **Biomechanically-correct cradle** (researched): top hand bent ~90° brings the head up by the helmet like a dumbbell curl, bottom hand loose at the hip on the butt, wrist-rock locked to the stride (curl opposite the lead foot). Stronger forward run lean. Verified close-up (tools/cradle1) + at distance (tools/shot-jumpfeel).
 - **Balance:** 5-game batch 15.8 combined goals, 5/5 finished, 0 violations; comeback batch (0-5 down) trailing team won 2/4, closed the rest to ≤4.
 
+## Jump trim, fire mechanics, cinematic replay, tuning ref (2026-06-15)
+- **Jump lowered**: `jump.v0` 430→375 → peak ~92→**72** (verified). Still clears checks / jump-shots.
+- **NBA-Jam individual ON FIRE**: each player tracks a personal goal streak (`player.heat`). 2 in a row = "HEATING UP!", 3 = catches fire (`player.onFire`) — flaming ball + body glow, shots near-unmissable (`fire.playerShotErr` 0.4, `playerShotSpeed` 1.15, goalie reflex ×0.7), until the opponent scores. Coexists with the existing whole-team ON FIRE (3 unanswered). Verified progression goal→HEATING UP→goal→ON FIRE with the right announcer calls + voice lines (BOOMSHAKALAKA etc.).
+- **Cinematic goal replay**: the behind-net cam now sweeps across the goal mouth and dollies in over the slow-mo instead of sitting static (`rp.side` captured at goal; pan+push-in from progress). Screenshot: tools/shot-replay-cam.jpg.
+- **Tuning reference**: new `TUNING.md` maps the main physics knobs (movement, jump, ball, pass, shot, goalie, hits, fire, difficulty) → current value → what raising it does; all live in `js/config.js`. Added `BARDOWN.physics()` console dump.
+- **Tests:** 5-game batch 13.8 combined goals, 5/5 finished, 0 violations.
+
 ## Post-ship fix (2026-06-10)
 Main loop gained a setInterval watchdog: embedded webviews / occluded windows can suppress requestAnimationFrame entirely, which left the canvas frozen black (this is what made the in-app preview panel look dead). If rAF goes stale >250 ms, a 30 Hz timer drives the same tick(). Verified: game clock now advances in a fully hidden preview window.

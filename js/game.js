@@ -90,6 +90,7 @@ class Game {
     if (shot) {
       const sm = this.getMods(shot.team);
       if (sm.onFire) r *= 0.85;
+      if (shot.shooter && shot.shooter.onFire) r *= CONFIG.fire.playerGoalieReflex; // hot hand
       if (shot.special) r *= sm.desperation ? CONFIG.rubber.despGoalieMult : 0.8;
       if (shot.quick) r *= 0.75; // one-timers catch the goalie mid-slide — the box scoring channel
       // arcade house rules: the CPU goalie freezes on the human's release, then reacts slower
@@ -571,6 +572,7 @@ class Game {
     let { ty, tz } = this.aimTarget(p, netIdx);
     let err = lerp(S.errMax, S.errMin, charge) * mods.err / p.teamDef.sht;
     if (this.mode === 'p1' && p.team === this.humanTeam) err *= this.diff.shotErr; // house rules
+    if (p.onFire) err *= CONFIG.fire.playerShotErr; // hot hand barely misses
     if (quick) err *= CONFIG.pass.quickErr;
     if (special) err *= CONFIG.special.errMult * (mods.desperation ? CONFIG.rubber.despErrMult : 1);
     ty += this.rng.range(-err, err);
@@ -582,6 +584,7 @@ class Game {
     let speed = lerp(S.minSpeed, S.maxSpeed, charge) * p.teamDef.sht;
     if (p.turboActive) speed *= S.turboMult;
     if (mods.onFire) speed *= S.fireMult;
+    if (p.onFire) speed *= CONFIG.fire.playerShotSpeed;
     if (quick) speed *= CONFIG.pass.quickSpeed;
     if (special) speed *= CONFIG.special.speedMult;
     b.launchShot(p, netIdx, ty, tz, Math.min(speed, 1500), special, quick);
@@ -923,6 +926,21 @@ class Game {
     if (lead > this.stats.biggestLead[team]) this.stats.biggestLead[team] = lead;
     this.unanswered[team]++;
     this.unanswered[1 - team] = 0;
+    // NBA-Jam individual heat: the scorer builds a personal streak; opponents cool off
+    if (this.fireEnabled) {
+      const F = CONFIG.fire, scorer = shot && shot.shooter;
+      for (const p of this.teams[1 - team]) { p.heat = 0; p.onFire = false; }
+      if (scorer && scorer.team === team) {
+        scorer.heat++;
+        if (!scorer.onFire && scorer.heat >= F.onFire) {
+          scorer.onFire = true;
+          AudioSys.riser();
+          Effects.announce('fire', { size: 56, color: '#ff9930', life: 2.0 });
+        } else if (scorer.heat === F.heatUp) {
+          Effects.announce('heatup', { size: 44, color: '#ffb14a', life: 1.4, y: 250 });
+        }
+      }
+    }
     if (this.fireEnabled) {
       if (this.fire[1 - team]) { this.fire[1 - team] = false; Effects.announce('fireout', { size: 30, y: 250, life: 1.0 }); }
       if (!this.fire[team] && this.unanswered[team] >= CONFIG.fire.unanswered) {

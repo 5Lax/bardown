@@ -5,6 +5,23 @@ const BARDOWN = {
   startGame: null, // wired by main.js in the browser
 
   install(game) { this.game = game; return this; },
+
+  // console helper: dump the key tunables (see TUNING.md). edit them live, e.g.
+  // CONFIG.goalie.reflexSpeed = 180; then keep playing.
+  physics() {
+    const C = CONFIG, o = {
+      movement: { maxSpeed: C.player.maxSpeed, accel: C.player.accel, friction: C.player.frict },
+      jump: { v0: C.jump.v0, grav: C.jump.grav, peakHeight: +(C.jump.v0 * C.jump.v0 / (2 * C.jump.grav)).toFixed(0) },
+      ball: { grav: C.ballPhys.grav, bounce: C.ballPhys.bounce, rollFriction: C.ballPhys.roll },
+      pass: { speed: C.pass.speed, arcPerDist: C.pass.arcPerDist, arcMax: C.pass.arcMax, goalieArcMax: C.pass.arcGoalieMax },
+      shot: { minSpeed: C.shot.minSpeed, maxSpeed: C.shot.maxSpeed, chargeTime: C.shot.chargeTime, scatter: [C.shot.errMin, C.shot.errMax] },
+      goalie: { reflexSpeed: C.goalie.reflexSpeed, coverW: C.goalie.coverW, coverH: C.goalie.coverH, retrieveR: C.goalie.retrieveR },
+      hits: { fumble: C.hit.fumbleBase, tacklePower: C.tackle.power, shoveUnder: C.body.shovePower, wallSpeed: C.body.setSpeed },
+      fire: { teamUnanswered: C.fire.unanswered, personalHeatUp: C.fire.heatUp, personalOnFire: C.fire.onFire },
+    };
+    if (HAS_DOM && typeof console !== 'undefined') console.table(Object.fromEntries(Object.entries(o).map(([k, v]) => [k, JSON.stringify(v)])));
+    return o;
+  },
   hookErrors() {
     if (!HAS_DOM) return;
     window.addEventListener('error', e => this.errors.push(String(e.message)));

@@ -589,10 +589,11 @@ const Render3D = {
     rig.tag.visible = false;
 
     const mods = this.game.getMods(p.team);
+    const onfire = p.onFire || mods.onFire; // individual hot hand OR whole-team ON FIRE
     rig.jersey.emissive = rig.jersey.emissive || new THREE.Color(0);
-    rig.jersey.emissive.setHex(mods.onFire ? 0x662200 : 0x000000);
-    if (mods.onFire && Math.random() < 0.25)
-      Effects.burst(p.pos.x, p.pos.y, { n: 1, color: '#ff9930', spd: 40, life: 0.5, size: 3, drag: 1 });
+    rig.jersey.emissive.setHex(onfire ? (p.onFire ? 0x883300 : 0x662200) : 0x000000);
+    if (onfire && Math.random() < (p.onFire ? 0.5 : 0.25))
+      Effects.burst(p.pos.x, p.pos.y - 6, { n: 1, color: Math.random() < 0.5 ? '#ff7a1a' : '#ffd24a', spd: 55, life: 0.5, size: 3, drag: 1 });
     if (p.turboActive && Math.random() < 0.5) Effects.trail(p.pos.x, p.pos.y, p.teamDef.color, 6);
 
     if (p.controlled && this.game.mode !== 'cpu') {
@@ -794,6 +795,11 @@ const Render3D = {
     this.ballShadow.position.set(this.ballMesh.position.x, 0.7, this.ballMesh.position.z);
     const h = clamp(this.ballMesh.position.y / 60, 0, 1);
     this.ballShadow.material.opacity = 0.38 - h * 0.2;
+    // flaming ball in the hands of a hot-hand player (or mid-shot from one)
+    const hot = (b.carrier && b.carrier.onFire) || (b.state === 'shot' && b.shot && b.shot.shooter && b.shot.shooter.onFire);
+    this.ballMesh.material.emissive.setHex(hot ? 0xff5a00 : 0x331500);
+    if (hot && Math.random() < 0.8)
+      Effects.burst(b.pos.x, b.pos.y, { n: 1, color: Math.random() < 0.5 ? '#ff7a1a' : '#ffd24a', spd: 70, life: 0.4, size: 3, drag: 2 });
     this.ghostCd -= 1;
     if (b.state === 'shot' && this.ghostCd <= 0) {
       this.ghostCd = 2;
@@ -930,7 +936,7 @@ const Render3D = {
         savePose: p.savePose || 0, saveSide: p.saveSide || 1,
         scoopAnim: p.scoopAnim || 0, catchAnim: p.catchAnim || 0,
         spinT: p.spinT || 0, staggerT: p.staggerT || 0,
-        __hasBall: game.ball.carrier === p,
+        onFire: p.onFire, __hasBall: game.ball.carrier === p,
       })),
     };
   },
@@ -957,12 +963,15 @@ const Render3D = {
     for (const q of this.trailQuads) q.visible = false;
     this.reticle.visible = false;
     this.passMarker.visible = false;
-    // low corner cam behind the net that just got beaten
-    const rw = CONFIG.rink.w / 2;
-    const side = game.ball.pos.x > 640 ? 1 : -1;
-    this.camera.position.set(side * (rw + 45), 92, 165);
-    this.camera.lookAt(side * (rw - 280), 24, -10);
-    this.camera.fov = 50;
+    // cinematic replay: a low cam that sweeps across the goal mouth while pushing in
+    const side = rp.side || 1;
+    const netWX = (side > 0 ? CONFIG.goals[1].x : CONFIG.goals[0].x) - 640;
+    const prog = clamp(rp.idx / rp.frames.length, 0, 1);
+    const ang = (prog - 0.5) * 1.5;     // pan across the front of the net
+    const rad = 250 - prog * 120;       // dolly in over the replay
+    this.camera.position.set(netWX + side * (58 + rad * 0.32), 46 + prog * 44, Math.sin(ang) * rad);
+    this.camera.lookAt(netWX - side * 90, 30, Math.sin(ang) * 28);
+    this.camera.fov = 44 - prog * 7;
     this.camera.updateProjectionMatrix();
     this.renderer.render(this.scene, this.camera);
   },
@@ -973,7 +982,8 @@ const Render3D = {
     this.t += dt;
     if (!this.history) this.history = [];
     if (game.state === 'goal' && this.lastState !== 'goal' && this.history.length > 24) {
-      this.replay = { frames: this.history.slice(-150), idx: 0 };
+      // capture which net was beaten NOW (the ball is parked in it before the faceoff reset)
+      this.replay = { frames: this.history.slice(-150), idx: 0, side: game.ball.pos.x > 640 ? 1 : -1 };
     }
     this.lastState = game.state;
     if (this.replay) { this.renderReplay(game, dt); return; }

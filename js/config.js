@@ -22,8 +22,8 @@ const CONFIG = {
   // a live India-rubber ball: snappy gravity, energetic bounces, low rolling friction so
   // it skitters around the floor and almost never sits still (box lacrosse never stops)
   ballPhys: { grav: 1050, bounce: 0.62, deadVz: 55, roll: 0.42, pickupZ: 40, scoopZ: 22 },
-  // big Blast-style hops — leap over checks and across the crease
-  jump: { v0: 430, grav: 1000, dodgeZ: 11 },
+  // Blast-style hops — peak ~70 (v0^2/2g): clears checks, jump-shots over a set goalie
+  jump: { v0: 375, grav: 1000, dodgeZ: 11 },
   // double right-click: launch horizontally and pancake whoever you touch. Whiff = you eat floor.
   tackle: { window: 0.35, cd: 1.3, speed: 560, time: 0.5, power: 1.55, selfDown: 0.4 },
   // SHIFT tap: spin dodge — slips checks and braced bodies, but NOT flying tackles
@@ -70,7 +70,11 @@ const CONFIG = {
     cpuReactPerGoal: 0.045, fumbleAt3: 0.17, desperationAt: 5,
     despErrMult: 0.15, despGoalieMult: 0.4,
   },
-  fire: { unanswered: 3, speed: 1.08, shotErr: 0.7 },
+  // team ON FIRE: 3 unanswered → whole team juiced. Plus NBA-Jam individual heat: a player
+  // who personally scores `heatUp` in a row is "heating up", `onFire` in a row catches fire
+  // (flaming ball, near-unmissable shots) until the opponent scores.
+  fire: { unanswered: 3, speed: 1.08, shotErr: 0.7,
+          heatUp: 2, onFire: 3, playerShotErr: 0.4, playerShotSpeed: 1.15, playerGoalieReflex: 0.7 },
 
   special: { errMult: 0.5, speedMult: 1.25, cooldown: 1.5, minCharge: 0.35, diveRange: 270, diveTime: 0.55, diveBoost: 430 },
 
