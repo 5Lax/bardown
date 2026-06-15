@@ -377,6 +377,21 @@ const Render3D = {
 
   // ---- player rigs (articulated low-poly humans) ----
 
+  // decimated RC1 lacrosse head (vendor/stickhead.js), built once and shared by every
+  // stick. Normalized to unit length; rotated so the throat→scoop axis runs along +X.
+  headGeometry() {
+    if (this._headGeo !== undefined) return this._headGeo;
+    if (typeof window === 'undefined' || !window.STICK_HEAD) { this._headGeo = null; return null; }
+    const H = window.STICK_HEAD;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(H.pos, 3));
+    g.setIndex(H.idx);
+    g.computeVertexNormals();
+    g.rotateY(Math.PI / 2); // STL long axis (Z) → stick local +X
+    this._headGeo = g;
+    return g;
+  },
+
   makeRig(p) {
     const td = p.teamDef;
     const goalie = p.isGoalie;
@@ -487,13 +502,23 @@ const Render3D = {
       new THREE.MeshLambertMaterial({ color: 0xc9cfd8 }));
     shaft.rotation.z = Math.PI / 2;
     stick.add(shaft);
-    const loop = new THREE.Mesh(new THREE.TorusGeometry(goalie ? 7.5 : 5.5, 1.1, 6, 14), trim);
-    loop.position.set(21, 0, 0);
-    stick.add(loop);
-    const pocket = new THREE.Mesh(new THREE.CircleGeometry(goalie ? 6.6 : 4.7, 10),
-      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, side: THREE.DoubleSide }));
-    pocket.position.set(21, 0, 0);
-    stick.add(pocket);
+    const headGeo = this.headGeometry();
+    if (headGeo) {
+      // the real RC1 head — shared geometry, tinted to the team's trim color
+      const head = new THREE.Mesh(headGeo, new THREE.MeshLambertMaterial({ color: td.trim, side: THREE.DoubleSide }));
+      const L = goalie ? 19 : 15;
+      head.scale.setScalar(L);
+      head.position.set(goalie ? 23 : 21, 0, 0);
+      stick.add(head);
+    } else {
+      const loop = new THREE.Mesh(new THREE.TorusGeometry(goalie ? 7.5 : 5.5, 1.1, 6, 14), trim);
+      loop.position.set(21, 0, 0);
+      stick.add(loop);
+      const pocket = new THREE.Mesh(new THREE.CircleGeometry(goalie ? 6.6 : 4.7, 10),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, side: THREE.DoubleSide }));
+      pocket.position.set(21, 0, 0);
+      stick.add(pocket);
+    }
     g.add(stick);
 
     const shadow = new THREE.Mesh(new THREE.CircleGeometry(p.r * 1.15, 14),
