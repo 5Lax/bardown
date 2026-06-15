@@ -53,7 +53,10 @@ Camera: Blast-Lacrosse end view — parked behind the human end, floor runs up-s
 
 ## Feature-wave notes (2026-06-11)
 
-- **Lob passes**: `Ball.launchPass(..., lob)` arcs z over `pass.lobPeak`; goalie passes always lob (`tryPass`); interceptions skip while `z > lobSafeZ` or within `launchGrace` of launch. This killed the outlet-camping exploit — note it also deflated the steal stat, which had been inflated by CPU self-camping.
+- **Passes** (`Ball.launchPass(from,to,lead,bounce)`): arc height scales with throw distance (`arcPerDist`, clamped `arcMin..arcMax`) so full-floor feeds rainbow; goalies arc higher still (`arcGoalie`). `bounce=true` (human SHIFT, CPU short-pass rng) = gravity skip pass that bounces under raised sticks (low, interceptable) vs the default high arc (over them, intercept-immune above `lobSafeZ`). Goalie passes never bounce.
+- **Live ball**: loose balls use real gravity (`ballPhys.grav/bounce/roll`) — they drop, bounce energetically, and skitter with low rolling friction; never hover. Fumbles/rebounds/faceoffs pop the ball up with `vz`.
+- **Jump** is big and Blast-like (`jump.v0 430 / grav 1000` → ~92 peak): clears checks, jump-shots over a set goalie, leaps across the crease. jumpZ invariant cap is 130.
+- **Cradle anim** follows real biomechanics: top hand (R) bent ~90° holds the head up by the helmet, bottom hand (L) loose at the hip, wrist-rock locked to the stride.
 - **Stoppage mayhem**: `stepAction` runs during `goal` and `break` states (no clocks) — after-whistle hits/tackles are intentional.
 - **Difficulty**: `CONFIG.difficulty[ROOKIE|ARCADE|INSANE]` → `game.diff`; gates 1P house rules + CPU reaction/aggression. CPU-vs-CPU and 2P never use assists.
 - **2P local**: Input is source-split — `held/pressed/move/aimFor` take `'kbm'|'pad'|'all'`. P1 = keyboard+mouse, P2 = first gamepad (`game.controlled2`, `applyHumanIntent2`). In 1P, sources merge ('all').

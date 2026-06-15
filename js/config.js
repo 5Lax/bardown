@@ -19,8 +19,11 @@ const CONFIG = {
     turboMult: 1.45, turboAccel: 3650, turboMax: 100, turboDrain: 36, turboRegen: 22, turboMin: 8,
     pickupR: 25, scoopCd: 0.45,
   },
-  ballPhys: { grav: 920, bounce: 0.55, deadVz: 60, pickupZ: 38, scoopZ: 20 },
-  jump: { v0: 255, grav: 780, dodgeZ: 10 },
+  // a live India-rubber ball: snappy gravity, energetic bounces, low rolling friction so
+  // it skitters around the floor and almost never sits still (box lacrosse never stops)
+  ballPhys: { grav: 1050, bounce: 0.62, deadVz: 55, roll: 0.42, pickupZ: 40, scoopZ: 22 },
+  // big Blast-style hops — leap over checks and across the crease
+  jump: { v0: 430, grav: 1000, dodgeZ: 11 },
   // double right-click: launch horizontally and pancake whoever you touch. Whiff = you eat floor.
   tackle: { window: 0.35, cd: 1.3, speed: 560, time: 0.5, power: 1.55, selfDown: 0.4 },
   // SHIFT tap: spin dodge — slips checks and braced bodies, but NOT flying tackles
@@ -37,8 +40,10 @@ const CONFIG = {
   pass: {
     speed: 1180, homing: 10, catchR: 26, lead: 0.55, cone: 0.25,
     quickWindow: 0.34, quickSpeed: 1.3, quickErr: 0.7, interceptR: 16, interceptP: 0.62,
-    // EVERY pass arcs now: base = normal feed, high = SHIFT saucer, goalie = rainbow outlet
-    lobPeakBase: 46, lobPeakHigh: 78, lobPeakGoalie: 105, lobSafeZ: 34, launchGrace: 0.05,
+    // arc height scales with throw distance — full-floor passes go way up. goalie outlets
+    // rainbow even higher. SHIFT = bounce/skip pass (gets under sticks instead of over them).
+    arcPerDist: 0.135, arcMin: 30, arcMax: 165, arcGoalie: 0.24, arcGoalieMax: 270,
+    lobSafeZ: 36, launchGrace: 0.05,
   },
   shot: {
     minSpeed: 850, maxSpeed: 1400, chargeTime: 0.5, z0: 12,

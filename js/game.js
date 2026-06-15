@@ -491,7 +491,7 @@ class Game {
     return best || nearest;
   }
 
-  tryPass(p, forced, lob) {
+  tryPass(p, forced, bounce) {
     const b = this.ball;
     if (b.carrier !== p) return;
     const target = (forced && forced.state === 'play') ? forced : this.bestPassTarget(p);
@@ -501,7 +501,7 @@ class Game {
       x: target.pos.x + target.vel.x * CONFIG.pass.lead * (d / CONFIG.pass.speed),
       y: target.pos.y + target.vel.y * CONFIG.pass.lead * (d / CONFIG.pass.speed),
     };
-    b.launchPass(p, target, lead, lob || p.isGoalie); // goalies always throw over the traffic
+    b.launchPass(p, target, lead, bounce); // arc height scales with distance; goalie auto-rainbows
     p.scoopCd = 0.25;
     p.charging = false; p.charge = 0;
     AudioSys.pass();

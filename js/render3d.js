@@ -749,25 +749,31 @@ const Render3D = {
         rig.stick.rotation.set(0, -0.4, 1.0 + 0.5 * k);
       }
     } else if (hasBall) {
-      // proper box cradle: stick up by the helmet, head rocking, top hand high
-      const rock = Math.sin(t * 7) * 0.16;
-      rig.upper.rotation.y = rock * 0.3 - Math.sin(ph) * 0.1 * runK;
-      rig.armL.sh.rotation.set(-1.0 + rock * 0.25, 0, 0.5); rig.armL.el.rotation.x = 1.4;
-      rig.armR.sh.rotation.set(0.45, 0, -0.3); rig.armR.el.rotation.x = 0.75;
-      rig.stick.position.set(6, 31, 6.5);
-      rig.stick.rotation.set(rock * 0.6, -0.45, 1.05 + rock * 0.3);
+      // box cradle, by the biomechanics: TOP hand (R) bent ~90° brings the head up by the
+      // helmet like a dumbbell curl; BOTTOM hand (L) holds the butt loose at the hip; the
+      // wrist-driven rock is locked to the stride (curl opposite the lead foot).
+      const cad = runK > 0.15 ? Math.sin(ph) : Math.sin(t * 6);
+      const rock = cad * 0.5;
+      rig.upper.rotation.y = 0.26 - Math.sin(ph) * 0.12 * runK; // bladed to protect the stick
+      // top hand: upper arm up across the chest, forearm vertical, elbow ~90°
+      rig.armR.sh.rotation.set(-1.9, 0.15, -0.5); rig.armR.el.rotation.x = 1.7 + rock * 0.2;
+      // bottom hand: low and loose on the butt at the hip
+      rig.armL.sh.rotation.set(0.4, 0, 0.6); rig.armL.el.rotation.x = 1.15;
+      // stick near-vertical, head up by the right ear; wrist rock twists the shaft
+      rig.stick.position.set(7, 40, 7.5);
+      rig.stick.rotation.set(0.12 + rock * 0.16, -0.32, 1.42 + rock * 0.12);
     } else {
       // natural run: torso counter-rotates the stride, arms pump with bent elbows
-      rig.upper.rotation.y = -Math.sin(ph) * 0.24 * runK;
-      rig.armL.sh.rotation.x = Math.sin(ph) * 0.85 * runK + 0.18;
-      rig.armR.sh.rotation.x = -Math.sin(ph) * 0.85 * runK + 0.18;
-      rig.armL.el.rotation.x = 0.8; rig.armR.el.rotation.x = 0.8;
+      rig.upper.rotation.y = -Math.sin(ph) * 0.26 * runK;
+      rig.armL.sh.rotation.x = Math.sin(ph) * 0.9 * runK + 0.2;
+      rig.armR.sh.rotation.x = -Math.sin(ph) * 0.9 * runK + 0.2;
+      rig.armL.el.rotation.x = 0.85; rig.armR.el.rotation.x = 0.85;
       rig.armL.sh.rotation.z = 0.16; rig.armR.sh.rotation.z = -0.16;
       rig.stick.position.set(10, 24, 5);
       rig.stick.rotation.set(0, -0.3, 0.55);
     }
-    // athletic hunch (skaters never stand bolt upright)
-    if (!p.isGoalie && !swinging) rig.upper.rotation.z += -0.07 - runK * 0.05;
+    // athletic forward lean (skaters never stand bolt upright; stronger at sprint)
+    if (!p.isGoalie && !swinging) rig.upper.rotation.z += -0.1 - runK * 0.12;
     this.updateStickTip(rig);
   },
 

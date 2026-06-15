@@ -145,7 +145,8 @@ const AI = {
         if (best && game.rng.chance(0.75)) {
           p.intent.pass = true;
           p.intent.passTo = best;
-          p.intent.passLob = dist(p.pos.x, p.pos.y, best.pos.x, best.pos.y) > 340 && game.rng.chance(0.6);
+          // long passes auto-arc high; the CPU occasionally skips a short one under sticks
+          p.intent.passLob = dist(p.pos.x, p.pos.y, best.pos.x, best.pos.y) < 260 && game.rng.chance(0.2);
           return;
         }
       }

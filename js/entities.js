@@ -253,7 +253,7 @@ class Ball {
     this.state = 'loose'; // loose | carried | pass | shot | held | dead
     this.carrier = null; this.passTo = null; this.passTeam = -1;
     this.shot = null; this.lastTouchTeam = -1; this.lastTouch = null;
-    this.lob = false; this.passT = 0; this.lobT = 0.3;
+    this.lob = false; this.bounce = false; this.passT = 0; this.lobT = 0.3;
     this.lobPeak = 46;
     this.vz = 0;
   }
@@ -283,19 +283,29 @@ class Ball {
     this.vel.x = vx; this.vel.y = vy;
     if (vz !== undefined) this.vz = vz;
   }
-  launchPass(from, to, lead, high) {
+  launchPass(from, to, lead, bounce) {
     const S = CONFIG.pass;
     this.carrier = null; this.state = 'pass';
     this.passTo = to; this.passTeam = from.team;
     this.lastTouchTeam = from.team; this.lastTouch = from;
-    const d = norm(lead.x - this.pos.x, lead.y - this.pos.y);
-    this.vel.x = d.x * S.speed; this.vel.y = d.y * S.speed;
+    const dir = norm(lead.x - this.pos.x, lead.y - this.pos.y);
+    const dd = dist(this.pos.x, this.pos.y, lead.x, lead.y);
+    this.vel.x = dir.x * S.speed; this.vel.y = dir.y * S.speed;
     this.z = 12;
-    // every pass arcs like a real feed; goalies throw rainbows, SHIFT throws saucers
-    this.lob = true;
-    this.lobPeak = from.isGoalie ? S.lobPeakGoalie : (high ? S.lobPeakHigh : S.lobPeakBase);
     this.passT = 0;
-    this.lobT = Math.max(0.25, dist(this.pos.x, this.pos.y, lead.x, lead.y) / S.speed);
+    this.lobT = Math.max(0.25, dd / S.speed);
+    this.bounce = !!bounce && !from.isGoalie;
+    if (this.bounce) {
+      // skip pass: low launch, gravity bounces it to the target under raised sticks
+      this.lob = false;
+      this.vz = 40;
+    } else {
+      // arc height scales with throw distance; goalies rainbow it even higher
+      this.lob = true;
+      this.lobPeak = from.isGoalie
+        ? Math.min(S.arcGoalieMax, Math.max(95, dd * S.arcGoalie))
+        : clamp(dd * S.arcPerDist, S.arcMin, S.arcMax);
+    }
   }
   launchShot(shooter, netIdx, ty, tz, speed, special, quick) {
     const net = CONFIG.goals[netIdx];
@@ -324,19 +334,19 @@ class Ball {
         break;
       }
       case 'loose': {
-        // a real india-rubber ball: it drops, bounces, and skitters
+        // a real india-rubber ball: it drops, bounces hard, and skitters with low friction
         const BP = CONFIG.ballPhys;
         this.pos.x += this.vel.x * dt;
         this.pos.y += this.vel.y * dt;
-        this.vel.x = damp(this.vel.x, 0.9, dt);
-        this.vel.y = damp(this.vel.y, 0.9, dt);
+        this.vel.x = damp(this.vel.x, BP.roll, dt);
+        this.vel.y = damp(this.vel.y, BP.roll, dt);
         this.z += this.vz * dt;
         this.vz -= BP.grav * dt;
         if (this.z <= 0) {
           this.z = 0;
           if (this.vz < -BP.deadVz) {
             this.vz = -this.vz * BP.bounce;
-            AudioSys.bounce(Math.min(1, -0 + this.vz / 300));
+            AudioSys.bounce(Math.min(1, this.vz / 300));
           } else this.vz = 0;
         }
         if (collideBoards(this.pos, this.vel, 7, CONFIG.rink.restitution) > 150) AudioSys.thud(0.5);
@@ -348,7 +358,14 @@ class Ball {
           this.state = 'loose'; this.passTo = null; break;
         }
         this.passT += dt;
-        this.z = 12 + Math.sin(clamp(this.passT / this.lobT, 0, 1) * Math.PI) * (this.lobPeak || CONFIG.pass.lobPeakBase);
+        if (this.bounce) {
+          // gravity skip — homes horizontally while bouncing off the floor
+          this.z += this.vz * dt;
+          this.vz -= CONFIG.ballPhys.grav * dt;
+          if (this.z <= 0) { this.z = 0; if (this.vz < -40) { this.vz = -this.vz * 0.55; AudioSys.bounce(0.4); } else this.vz = 0; }
+        } else {
+          this.z = 12 + Math.sin(clamp(this.passT / this.lobT, 0, 1) * Math.PI) * (this.lobPeak || 46);
+        }
         const dd = dist(this.pos.x, this.pos.y, t.pos.x, t.pos.y);
         const lead = {
           x: t.pos.x + t.vel.x * S.lead * (dd / S.speed),
@@ -361,7 +378,9 @@ class Ball {
         this.pos.x += this.vel.x * dt;
         this.pos.y += this.vel.y * dt;
         collideBoards(this.pos, this.vel, 7, CONFIG.rink.restitution);
-        if (dd < S.catchR && (!this.lob || this.z < 34 || this.passT > this.lobT * 0.85)) {
+        const catchable = this.bounce ? this.z < 30
+          : (this.z < S.lobSafeZ || this.passT > this.lobT * 0.85);
+        if (dd < S.catchR && catchable) {
           this.attach(t);
           AudioSys.catchBall();
         }
