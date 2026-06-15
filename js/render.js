@@ -537,6 +537,7 @@ const Render = {
       'LEFT-CLICK: tap = PASS (switch on D) · hold = power up, release = RIP IT',
       'RIGHT-CLICK check · DOUBLE R-CLICK flying tackle · SPACE jump · E call a cut',
       'SHIFT tap = SPIN DODGE · SHIFT + click = BOUNCE PASS under the sticks',
+      'hold L-CLICK as a pass arrives = ONE-TIMER · MOUSE-WHEEL zoom · MIDDLE-DRAG rotate, middle-click resets',
       'shoot mid-air = JUMP SHOT · charging + tap R-CLICK = showtime',
       'release at full sprint near the crease = DIVE · hold G = goalie',
     ];

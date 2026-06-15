@@ -2,7 +2,8 @@
 // press fires game logic exactly once even with multiple physics steps per frame.
 const Input = {
   keys: Object.create(null),
-  mouse: { x: CONFIG.center.x, y: CONFIG.center.y, down: false, rdown: false, lastMove: -1e9 },
+  mouse: { x: CONFIG.center.x, y: CONFIG.center.y, down: false, rdown: false, lastMove: -1e9,
+           mdown: false, mlx: 0, mly: 0, mdx: 0, mdy: 0, mdragged: false, wheel: 0, mClick: false },
   press: Object.create(null), // edge-triggered, consumed on read
   padIndex: null, pad: null, padPrev: Object.create(null),
   canvas: null, enabled: HAS_DOM,
@@ -22,16 +23,25 @@ const Input = {
       this.mouse.x = (e.clientX - r.left) * (CONFIG.canvas.w / r.width);
       this.mouse.y = (e.clientY - r.top) * (CONFIG.canvas.h / r.height);
       this.mouse.lastMove = performance.now();
+      if (this.mouse.mdown) { // middle-drag orbits the camera
+        this.mouse.mdx += e.clientX - this.mouse.mlx;
+        this.mouse.mdy += e.clientY - this.mouse.mly;
+        if (Math.abs(e.clientX - this.mouse.mlx) + Math.abs(e.clientY - this.mouse.mly) > 2) this.mouse.mdragged = true;
+      }
+      this.mouse.mlx = e.clientX; this.mouse.mly = e.clientY;
     });
     canvas.addEventListener('mousedown', e => {
       AudioSys.init();
       if (e.button === 0) { this.mouse.down = true; this.press.MouseL = true; }
       if (e.button === 2) { this.mouse.rdown = true; this.press.MouseR = true; }
+      if (e.button === 1) { this.mouse.mdown = true; this.mouse.mdragged = false; this.mouse.mlx = e.clientX; this.mouse.mly = e.clientY; e.preventDefault(); }
     });
     window.addEventListener('mouseup', e => {
       if (e.button === 0) this.mouse.down = false;
       if (e.button === 2) this.mouse.rdown = false;
+      if (e.button === 1) { this.mouse.mdown = false; if (!this.mouse.mdragged) this.mouse.mClick = true; } // tap = reset view
     });
+    canvas.addEventListener('wheel', e => { this.mouse.wheel += e.deltaY > 0 ? 1 : -1; e.preventDefault(); }, { passive: false });
     canvas.addEventListener('contextmenu', e => e.preventDefault());
     window.addEventListener('gamepadconnected', e => { this.padIndex = e.gamepad.index; });
   },
@@ -73,6 +83,14 @@ const Input = {
     }
     const l = Math.hypot(x, y);
     return l > 1 ? { x: x / l, y: y / l } : { x, y };
+  },
+
+  // camera control deltas, consumed once per frame by Render3D: orbit drag, zoom, reset tap
+  cameraInput() {
+    const m = this.mouse;
+    const out = { dx: m.mdx, dy: m.mdy, wheel: m.wheel, reset: m.mClick };
+    m.mdx = 0; m.mdy = 0; m.wheel = 0; m.mClick = false;
+    return out;
   },
 
   // mouse position in rink coordinates (3D: floor raycast; 2D: inverse of the fit-scale)

@@ -150,26 +150,22 @@ const AudioSys = {
   },
   excite(level) { this.crowdTarget = Math.min(0.30, 0.06 + level * 0.22); },
 
-  // heroic adventure loop, G major @ 140 — plucky dual-triangle lead over warm bass
-  // and a soft timpani pulse. Fun and mythical, zero assets.
+  // aggressive arcade loop, E minor @ 158 — gritty square lead riff over a pumping
+  // octave bass and a kick/snare/hat backbeat. NFL-Blitz/NBA-Jam hype, zero assets.
   music(enabled) { this.musicOn = enabled; },
   buildTune() {
-    // [freq, eighth-notes]; 0 = rest. Two 4-bar phrases (64 eighths total).
-    const N = { G3: 196, A3: 220, B3: 246.9, C4: 261.6, D4: 293.7, E4: 329.6, Fs4: 370, G4: 392, A4: 440, B4: 493.9, C5: 523.3, D5: 587.3, E5: 659.3, Fs5: 740, G5: 784 };
-    const phrase = [
-      [N.G4, 2], [N.B4, 1], [N.D5, 1], [N.G5, 2], [N.Fs5, 1], [N.E5, 1],
-      [N.D5, 3], [N.C5, 1], [N.B4, 2], [N.A4, 2],
-      [N.B4, 2], [N.C5, 1], [N.D5, 1], [N.E5, 2], [N.C5, 2],
-      [N.D5, 6], [0, 2],
-      [N.E5, 2], [N.Fs5, 1], [N.G5, 1], [N.Fs5, 2], [N.E5, 1], [N.D5, 1],
-      [N.E5, 3], [N.D5, 1], [N.C5, 2], [N.B4, 2],
-      [N.A4, 2], [N.B4, 1], [N.C5, 1], [N.B4, 2], [N.A4, 2],
-      [N.G4, 6], [0, 2],
+    // [freq, eighth-notes]; 0 = rest. 32-eighth (4-bar) hook, looped.
+    const N = { E3: 164.8, Fs3: 185, G3: 196, A3: 220, B3: 246.9, C4: 261.6, D4: 293.7, E4: 329.6, Fs4: 370, G4: 392, A4: 440, B4: 493.9, C5: 523.3, D5: 587.3, E5: 659.3, G5: 784 };
+    const lead = [
+      [N.E5, 1], [N.E5, 1], [N.B4, 1], [N.E5, 1], [N.D5, 1], [0, 1], [N.B4, 1], [0, 1],
+      [N.A4, 1], [N.B4, 1], [N.C5, 1], [N.B4, 1], [N.A4, 1], [N.G4, 1], [N.E4, 2],
+      [N.E5, 1], [N.E5, 1], [N.B4, 1], [N.D5, 1], [N.E5, 1], [0, 1], [N.G5, 1], [0, 1],
+      [N.Fs4, 1], [N.G4, 1], [N.A4, 1], [N.B4, 1], [N.E4, 2], [0, 2],
     ];
-    this.melodyMap = new Array(64).fill(null);
+    this.melodyMap = new Array(32).fill(null);
     let at = 0;
-    for (const [f, d] of phrase) { if (f) this.melodyMap[at % 64] = { f, d }; at += d; }
-    this.bassBars = [98, 130.8, 98, 146.8, 130.8, 110, 146.8, 98]; // G C G D | C A D G
+    for (const [f, d] of lead) { if (f) this.melodyMap[at % 32] = { f, d }; at += d; }
+    this.bassBars = [82.4, 110, 98, 123.5]; // E2 A2 G2 B2 — dark pumping drive
   },
   update(dt) {
     if (!this.ctx) return;
@@ -180,23 +176,24 @@ const AudioSys = {
     }
     if (!this.musicOn || this.muted) return;
     if (!this.melodyMap) this.buildTune();
-    const step = 60 / 140 / 2; // 8ths at 140bpm
+    const step = 60 / 158 / 2; // 8ths at 158bpm
     while (this.musicNext < this.t() + 0.12) {
       const t0 = Math.max(this.musicNext, this.t());
-      const i = this.musicStep % 64;
+      const i = this.musicStep % 32, beat = i % 8;
       const note = this.melodyMap[i];
       if (note) {
         const dur = note.d * step;
-        this.osc('triangle', note.f, note.f, t0, dur * 1.05, 0.06);
-        this.osc('triangle', note.f * 1.003, note.f * 1.003, t0, dur, 0.03); // chorus shimmer
+        this.osc('square', note.f, note.f, t0, dur * 0.92, 0.05);          // gritty lead
+        this.osc('square', note.f * 0.5, note.f * 0.5, t0, dur * 0.92, 0.025); // sub-octave punch
       }
-      if (i % 8 === 0) {
-        const root = this.bassBars[Math.floor(i / 8) % 8];
-        this.osc('triangle', root, root, t0, step * 7, 0.05);
-        this.osc('sine', root / 2, root / 2, t0, step * 3, 0.05);
-      }
-      if (i % 4 === 2) this.osc('sine', 82, 60, t0, 0.1, 0.05); // soft timpani pulse
-      if (i % 2 === 1) this.noise(t0, 0.025, 0.018, 'highpass', 7000, 7000, 1);
+      // pumping octave bass on every 8th
+      const root = this.bassBars[Math.floor(i / 8) % 4];
+      this.osc('sawtooth', root, root, t0, step * 0.85, 0.06);
+      if (beat % 2 === 0) this.osc('sawtooth', root / 2, root / 2, t0, step * 0.9, 0.04);
+      // backbeat drums: kick on 1 & 3, snare on 2 & 4, hats on every 8th
+      if (beat === 0 || beat === 4) this.osc('sine', 130, 48, t0, 0.12, 0.16);          // kick
+      if (beat === 2 || beat === 6) this.noise(t0, 0.09, 0.10, 'bandpass', 1700, 900, 1); // snare
+      this.noise(t0, 0.02, beat % 2 ? 0.03 : 0.05, 'highpass', 8000, 8000, 1);            // hat
       this.musicNext = (this.musicNext || this.t()) + step;
       this.musicStep++;
     }

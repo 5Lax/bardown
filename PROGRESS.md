@@ -137,5 +137,13 @@ From the Blitz/Blast/NHL-26 controls comparison, the two missing crossovers land
 - **Tuning reference**: new `TUNING.md` maps the main physics knobs (movement, jump, ball, pass, shot, goalie, hits, fire, difficulty) → current value → what raising it does; all live in `js/config.js`. Added `BARDOWN.physics()` console dump.
 - **Tests:** 5-game batch 13.8 combined goals, 5/5 finished, 0 violations.
 
+## Arcade music, head flip, one-timer, box-goalie armor, camera control (2026-06-15)
+- **Music** rewritten from the heroic theme to an aggressive arcade loop: gritty square-wave lead riff in E minor @158, pumping octave saw bass, kick/snare/hat backbeat. NFL-Blitz/NBA-Jam hype, still synthesized.
+- **Stick head** was on backwards: added `rotateX(π)` to the shared geometry (flip around the shaft) and sized it up (runner 15→19, goalie 19→23). Verified isolated — reads as a clean RC1 head.
+- **One-timer**: hold L-click (or pad shoot) while a pass is incoming to your controlled player → `oneTimerArmed`; on the catch it rips instantly (within 0.16 s) with the quick-shot bonus. Verified end-to-end in 1P.
+- **Box-goalie armor**: goalies now wear hockey-style gear (big chest protector, belly pad, shoulder caps, oversized leg pads, blocker, throat guard) — researched box-goalie equipment, they read as the big padded keeper now.
+- **Camera control**: mouse-wheel zoom (`camZoom` 0.5–2.2), middle-drag orbit (yaw/pitch), middle-click reset. Recomputed in spherical coords on top of the auto-follow base. Verified: wheel zoomed (cam moved 223u), drag yawed, click reset.
+- **Tests:** 4-game batch 14.5 combined goals, 4/4 finished, 0 violations (one-timer/goalie/camera are human- or render-only, sim untouched).
+
 ## Post-ship fix (2026-06-10)
 Main loop gained a setInterval watchdog: embedded webviews / occluded windows can suppress requestAnimationFrame entirely, which left the canvas frozen black (this is what made the in-app preview panel look dead). If rAF goes stale >250 ms, a 30 Hz timer drives the same tick(). Verified: game clock now advances in a fully hidden preview window.

@@ -343,6 +343,9 @@ class Game {
     const lobMod = Input.held('turbo', src);      // SHIFT held = saucer modifier
     // LMB: quick tap = pass (switch on D), hold past the threshold = charge a shot
     const lmb = Input.held('shoot', src);
+    // hold shoot while a pass is on the way to you = armed one-timer (fires on the catch)
+    if (lmb && !p.hasBall && this.ball.state === 'pass' && this.ball.passTo === p) p.oneTimerArmed = true;
+    else if (!lmb) p.oneTimerArmed = false;
     if (Input.pressed('shoot', src)) p.lmbAt = this.time;
     it.shootHold = lmb && p.hasBall && (this.time - (p.lmbAt !== undefined ? p.lmbAt : -9)) > 0.14;
     if (p.wasLmb && !lmb && (this.time - (p.lmbAt !== undefined ? p.lmbAt : -9)) <= 0.14) {
@@ -374,7 +377,10 @@ class Game {
     if (Input.pressed('jump', 'pad')) it.jump = true;
     if (Input.pressed('cut', 'pad')) this.callCut(t);
     if (Input.pressed('mod', 'pad')) it.spin = true;
-    it.shootHold = Input.held('shoot', 'pad') && p.hasBall;
+    const pheld = Input.held('shoot', 'pad');
+    if (pheld && !p.hasBall && this.ball.state === 'pass' && this.ball.passTo === p) p.oneTimerArmed = true;
+    else if (!pheld) p.oneTimerArmed = false;
+    it.shootHold = pheld && p.hasBall;
     if (Input.pressed('pass', 'pad')) {
       if (p.hasBall || (this.ball.state === 'held' && this.ball.carrier === p)) { it.pass = true; it.passLob = Input.held('turbo', 'pad'); }
       else this.manualSwitch2();

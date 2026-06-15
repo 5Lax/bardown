@@ -387,7 +387,8 @@ const Render3D = {
     g.setAttribute('position', new THREE.Float32BufferAttribute(H.pos, 3));
     g.setIndex(H.idx);
     g.computeVertexNormals();
-    g.rotateY(Math.PI / 2); // STL long axis (Z) → stick local +X
+    g.rotateY(Math.PI / 2);  // STL long axis (Z) → stick local +X
+    g.rotateX(Math.PI);      // flip 180° around the shaft — scoop/face the right way round
     this._headGeo = g;
     return g;
   },
@@ -496,6 +497,28 @@ const Render3D = {
     };
     const armL = mkArm(-1), armR = mkArm(1);
 
+    // box goalies are basically hockey goalies: huge chest protector, oversized leg pads,
+    // shoulder caps and a blocker. Bulky armor that reads as "the big guy in the cage."
+    if (goalie) {
+      const padW = new THREE.MeshLambertMaterial({ color: 0xeef2f6 });
+      const chest = new THREE.Mesh(new THREE.BoxGeometry(10, 21, 33), plain);
+      chest.position.set(2.5, 35, 0); upper.add(chest);
+      const belly = new THREE.Mesh(new THREE.BoxGeometry(8, 10, 28), padW);
+      belly.position.set(4.5, 25, 0); upper.add(belly);
+      for (const s of [-1, 1]) {
+        const cap = new THREE.Mesh(new THREE.BoxGeometry(9, 9, 11), plain);
+        cap.position.set(1, 45, s * 16); upper.add(cap);
+      }
+      for (const leg of [legL, legR]) { // oversized rectangular leg pads
+        const pad = new THREE.Mesh(new THREE.BoxGeometry(8, 17, 11), padW);
+        pad.position.set(3, -6, 0); leg.knee.add(pad);
+      }
+      const blocker = new THREE.Mesh(new THREE.BoxGeometry(3, 11, 11), padW); // blocker glove
+      blocker.position.set(0, -10, 0); armL.el.add(blocker);
+      const tguard = new THREE.Mesh(new THREE.BoxGeometry(2, 4, 11), padW); // throat guard
+      tguard.position.set(6.5, 47, 0); upper.add(tguard);
+    }
+
     // stick
     const stick = new THREE.Group();
     const shaft = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 38, 6),
@@ -506,9 +529,9 @@ const Render3D = {
     if (headGeo) {
       // the real RC1 head — shared geometry, tinted to the team's trim color
       const head = new THREE.Mesh(headGeo, new THREE.MeshLambertMaterial({ color: td.trim, side: THREE.DoubleSide }));
-      const L = goalie ? 19 : 15;
+      const L = goalie ? 23 : 19; // bigger heads
       head.scale.setScalar(L);
-      head.position.set(goalie ? 23 : 21, 0, 0);
+      head.position.set(goalie ? 24 : 22, 0, 0);
       stick.add(head);
     } else {
       const loop = new THREE.Mesh(new THREE.TorusGeometry(goalie ? 7.5 : 5.5, 1.1, 6, 14), trim);
@@ -879,7 +902,8 @@ const Render3D = {
   },
 
   // Blast-style end camera: parked behind the human end, looking up-floor (+x).
-  // All extents derive from CONFIG.rink so floor-size changes stay one-line.
+  // Player camera control layered on top: wheel = zoom, middle-drag = orbit, middle-click = reset.
+  camZoom: 1, camYaw: 0, camPitch: 0,
   syncCamera(game, dt) {
     const b = game.ball;
     const rw = CONFIG.rink.w / 2, rh = CONFIG.rink.h / 2;
@@ -890,9 +914,25 @@ const Render3D = {
     const k = Math.min(1, dt * 3.4);
     this.camPos.lerp(want, k);
     this.camTarget.lerp(wantT, k);
-    this.camera.position.copy(this.camPos);
-    this.camera.position.z += Effects.shakeX * 0.8;
-    this.camera.position.y += Effects.shakeY * 0.8;
+
+    if (typeof Input !== 'undefined' && Input.enabled) {
+      const ci = Input.cameraInput();
+      if (ci.reset) { this.camZoom = 1; this.camYaw = 0; this.camPitch = 0; }
+      this.camZoom = clamp(this.camZoom * (1 + ci.wheel * 0.08), 0.5, 2.2);
+      this.camYaw += ci.dx * 0.006;
+      this.camPitch = clamp(this.camPitch + ci.dy * 0.004, -0.45, 0.95);
+    }
+    // recompute the camera position in spherical coords around the target so the user's
+    // yaw / pitch / zoom compose cleanly with the auto-follow base offset
+    const off = this.camPos.clone().sub(this.camTarget);
+    const r = off.length() * this.camZoom;
+    const yaw = Math.atan2(off.x, off.z) + this.camYaw;
+    const pitch = clamp(Math.asin(clamp(off.y / (off.length() || 1), -1, 1)) + this.camPitch, 0.04, 1.35);
+    const ch = Math.cos(pitch) * r;
+    this.camera.position.set(
+      this.camTarget.x + Math.sin(yaw) * ch + Effects.shakeX * 0.8,
+      this.camTarget.y + Math.sin(pitch) * r + Effects.shakeY * 0.8,
+      this.camTarget.z + Math.cos(yaw) * ch);
     this.camera.lookAt(this.camTarget);
     this.camera.fov = 46 - Effects.zoom * 55;
     this.camera.updateProjectionMatrix();

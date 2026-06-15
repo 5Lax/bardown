@@ -18,6 +18,7 @@ class Player {
     this.catchTime = -99; this.lastAim = null; this.controlled = false;
     this.scoopAnim = 0; this.catchAnim = 0;
     this.heat = 0; this.onFire = false; // NBA-Jam personal hot streak
+    this.oneTimerArmed = false;         // holding shoot as a pass arrives = instant one-timer
     this.ai = { decideT: 0, spot: null, cutT: 0, cutting: 0, plan: 'drive', chargeAim: 0, wantCharge: 0.7, holdT: 0 };
     this.resetIntent();
   }
@@ -143,6 +144,15 @@ class Player {
 
     // actions
     if (this.hasBall) {
+      // ONE-TIMER: you were holding shoot as the pass arrived → rip it the instant you catch
+      if (this.oneTimerArmed && (g.time - this.catchTime) < 0.16) {
+        this.oneTimerArmed = false;
+        this.charging = false; this.charge = 0;
+        g.fireShot(this, 0.55, null);
+        this.resetIntent();
+        return;
+      }
+      this.oneTimerArmed = false;
       if (it.shootHold) {
         this.charging = true;
         this.charge = Math.min(1, this.charge + dt / CONFIG.shot.chargeTime);
