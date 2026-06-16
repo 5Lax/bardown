@@ -145,5 +145,11 @@ From the Blitz/Blast/NHL-26 controls comparison, the two missing crossovers land
 - **Camera control**: mouse-wheel zoom (`camZoom` 0.5–2.2), middle-drag orbit (yaw/pitch), middle-click reset. Recomputed in spherical coords on top of the auto-follow base. Verified: wheel zoomed (cam moved 223u), drag yawed, click reset.
 - **Tests:** 4-game batch 14.5 combined goals, 4/4 finished, 0 violations (one-timer/goalie/camera are human- or render-only, sim untouched).
 
+## Head orientation fix, widened goalie head, per-player ratings (2026-06-15)
+- **Stick heads were genuinely backwards** — last turn's `rotateX(π)` was the wrong axis. Diagnosed by rendering three candidate flips on a shaft side-by-side; the end-for-end `rotateY` flip (scoop at the far end, throat at the shaft) was clearly correct. Net rotation is now `rotateY(-π/2)`. Also confirmed via a head-on render that the player BODIES face correctly (the "players backwards" feeling was the backwards head + seeing backs on the end-cam, which is normal for Blast view).
+- **Goalie head** is now a widened, bigger version of the RC1 (non-uniform scale: wider pocket, more depth).
+- **Per-player ratings**: each runner gets a position archetype — SNP (sniper, +shot), PLY (playmaker, +pass/+hands), ENF (enforcer, +power −shot), TWO (two-way), SPD (speedster, +speed) — plus a small deterministic jitter (no game.rng). Drives max speed (337–430 spread verified), accel, carry speed, hit/tackle power, shot speed+accuracy, pass speed, and fumble resistance. Shown as SPD/PWR/SHT/PAS/HND mini-bars on the controlled player's name tag; `BARDOWN.roster()` dumps the league.
+- **Tests:** 6-game batch 11.7 combined goals, 6/6 finished, 0 violations (ratings are net-neutral on average so balance held).
+
 ## Post-ship fix (2026-06-10)
 Main loop gained a setInterval watchdog: embedded webviews / occluded windows can suppress requestAnimationFrame entirely, which left the canvas frozen black (this is what made the in-app preview panel look dead). If rAF goes stale >250 ms, a 30 Hz timer drives the same tick(). Verified: game clock now advances in a fully hidden preview window.

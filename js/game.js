@@ -576,7 +576,8 @@ class Game {
     const S = CONFIG.shot;
     const quick = (this.time - p.catchTime) < CONFIG.pass.quickWindow;
     let { ty, tz } = this.aimTarget(p, netIdx);
-    let err = lerp(S.errMax, S.errMin, charge) * mods.err / p.teamDef.sht;
+    const sht = p.teamDef.sht * p.ratings.sht; // per-player shooting rating
+    let err = lerp(S.errMax, S.errMin, charge) * mods.err / sht;
     if (this.mode === 'p1' && p.team === this.humanTeam) err *= this.diff.shotErr; // house rules
     if (p.onFire) err *= CONFIG.fire.playerShotErr; // hot hand barely misses
     if (quick) err *= CONFIG.pass.quickErr;
@@ -587,7 +588,7 @@ class Game {
       ty = clamp(ty, net.cy - 38, net.cy + 38);
       tz = clamp(tz, 4, CONFIG.bar.lo + 2);
     }
-    let speed = lerp(S.minSpeed, S.maxSpeed, charge) * p.teamDef.sht;
+    let speed = lerp(S.minSpeed, S.maxSpeed, charge) * sht;
     if (p.turboActive) speed *= S.turboMult;
     if (mods.onFire) speed *= S.fireMult;
     if (p.onFire) speed *= CONFIG.fire.playerShotSpeed;
@@ -620,7 +621,7 @@ class Game {
     }
     if (!victim) return;
     const spd = Math.hypot(hitter.vel.x, hitter.vel.y);
-    let power = (0.8 + (spd / CONFIG.player.maxSpeed) * 0.5) * hitter.teamDef.pwr;
+    let power = (0.8 + (spd / CONFIG.player.maxSpeed) * 0.5) * hitter.teamDef.pwr * hitter.ratings.pwr;
     if (hitter.turboActive) power += H.turboPower;
     this.applyHit(hitter, victim, power, {});
   }
@@ -641,7 +642,7 @@ class Game {
       this.stats.hits[hitter.team]++;
       AudioSys.thud(power * 0.7);
       Effects.burst(victim.pos.x, victim.pos.y, { n: 6, color: '#ffffff', spd: 150, life: 0.3 });
-      if (hadBall && this.rng.chance(BB.shoveFumble + this.getMods(hitter.team).fumbleBonus * 0.5)) {
+      if (hadBall && this.rng.chance(BB.shoveFumble + this.getMods(hitter.team).fumbleBonus * 0.5 - (victim.ratings.hands - 1) * 0.6)) {
         const a2 = Math.atan2(dir.y, dir.x) + this.rng.range(-0.7, 0.7);
         this.ball.drop(Math.cos(a2) * 220, Math.sin(a2) * 220, this.rng.range(80, 200));
         this.ball.syncPrev();
@@ -651,7 +652,7 @@ class Game {
     }
     victim.knockDown(dir.x, dir.y, power);
     if (hadBall) {
-      const fum = H.fumbleBase + this.getMods(hitter.team).fumbleBonus + (opts.tackle ? 0.15 : 0);
+      const fum = H.fumbleBase + this.getMods(hitter.team).fumbleBonus + (opts.tackle ? 0.15 : 0) - (victim.ratings.hands - 1) * 0.6;
       if (this.rng.chance(Math.min(0.98, fum))) {
         const a2 = Math.atan2(dir.y, dir.x) + this.rng.range(-0.9, 0.9);
         const pop = this.rng.range(H.fumblePop[0], H.fumblePop[1]) * (opts.tackle ? 1.25 : 1);

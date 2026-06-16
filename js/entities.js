@@ -1,8 +1,20 @@
+// Per-position archetypes so each runner feels distinct (multipliers on team base ratings).
+// idx 0..4 = sniper, playmaker, enforcer, two-way, speedster. spd=run, pwr=hit, sht=shoot,
+// pass=feed speed, hands=stickwork (carry speed + fumble resistance).
+const ARCHETYPES = [
+  { role: 'SNP', spd: 0.98, pwr: 0.92, sht: 1.15, pass: 1.00, hands: 1.06 },
+  { role: 'PLY', spd: 1.03, pwr: 0.90, sht: 1.00, pass: 1.15, hands: 1.14 },
+  { role: 'ENF', spd: 0.93, pwr: 1.17, sht: 0.93, pass: 0.95, hands: 0.94 },
+  { role: 'TWO', spd: 1.00, pwr: 1.05, sht: 1.03, pass: 1.00, hands: 1.00 },
+  { role: 'SPD', spd: 1.15, pwr: 0.95, sht: 0.98, pass: 1.00, hands: 1.08 },
+];
+
 // Intent-driven entities: AI or Input fills p.intent each step; update() consumes it.
 class Player {
   constructor(game, team, idx, isGoalie) {
     this.game = game; this.team = team; this.idx = idx; this.isGoalie = !!isGoalie;
     this.teamDef = game.teamDefs[team];
+    this.ratings = this.rollRatings(team, idx, this.isGoalie);
     const P = CONFIG.player, G = CONFIG.goalie;
     this.r = this.isGoalie ? G.r : P.r;
     this.mass = this.isGoalie ? G.mass : 1;
@@ -22,6 +34,14 @@ class Player {
     this.ai = { decideT: 0, spot: null, cutT: 0, cutting: 0, plan: 'drive', chargeAim: 0, wantCharge: 0.7, holdT: 0 };
     this.resetIntent();
   }
+  // deterministic per-player ratings (no game.rng, so the sim stays reproducible)
+  rollRatings(team, idx, isGoalie) {
+    if (isGoalie) return { role: 'GK', spd: 1, pwr: 1, sht: 1, pass: 1, hands: 1 };
+    const a = ARCHETYPES[idx % 5];
+    const jit = (salt) => { const h = Math.sin((team * 131 + idx * 977 + salt * 53 + 7) * 12.9898) * 43758.5453; return (h - Math.floor(h) - 0.5) * 0.07; };
+    return { role: a.role, spd: a.spd + jit(1), pwr: a.pwr + jit(2), sht: a.sht + jit(3), pass: a.pass + jit(4) * 0.6, hands: a.hands + jit(5) * 0.6 };
+  }
+
   resetIntent() {
     this.intent = { mx: 0, my: 0, aim: null, turbo: false, pass: false, passTo: null, passLob: false, shootHold: false, hit: false, jump: false, tackle: false, spin: false };
   }
@@ -82,7 +102,7 @@ class Player {
       for (const v of g.players) {
         if (v.team === this.team || v.state !== 'play' || v.jumpZ > CONFIG.jump.dodgeZ) continue;
         if (dist(this.pos.x, this.pos.y, v.pos.x, v.pos.y) < this.r + v.r + 6) {
-          g.applyHit(this, v, CONFIG.tackle.power * this.teamDef.pwr, { tackle: true });
+          g.applyHit(this, v, CONFIG.tackle.power * this.teamDef.pwr * this.ratings.pwr, { tackle: true });
           this.tackleT = Math.min(this.tackleT, 0.1);
           break;
         }
@@ -122,12 +142,12 @@ class Player {
       AudioSys.jumpSfx();
     }
 
-    // movement
-    let maxSpd = P.maxSpeed * this.teamDef.spd * mods.speed * (mods.onFire ? CONFIG.fire.speed : 1);
-    let accel = P.accel;
+    // movement — per-player speed rating folds into the team base
+    let maxSpd = P.maxSpeed * this.teamDef.spd * this.ratings.spd * mods.speed * (mods.onFire ? CONFIG.fire.speed : 1);
+    let accel = P.accel * (0.85 + this.ratings.spd * 0.15);
     if (this.staggerT > 0) { accel *= 0.45; maxSpd *= 0.75; } // bodied: legs gone for a beat
     if (this.charging) maxSpd *= P.chargeSlow;
-    if (this.hasBall) maxSpd *= P.carrySlow;
+    if (this.hasBall) maxSpd *= P.carrySlow * this.ratings.hands; // good hands carry faster
     if (this.isGoalie) maxSpd = CONFIG.goalie.reflexSpeed; // the real save-or-goal dial
     this.vel.x += it.mx * accel * dt;
     this.vel.y += it.my * accel * dt;
@@ -301,10 +321,11 @@ class Ball {
     this.lastTouchTeam = from.team; this.lastTouch = from;
     const dir = norm(lead.x - this.pos.x, lead.y - this.pos.y);
     const dd = dist(this.pos.x, this.pos.y, lead.x, lead.y);
-    this.vel.x = dir.x * S.speed; this.vel.y = dir.y * S.speed;
+    const ps = S.speed * (from.ratings ? from.ratings.pass : 1); // crisper feeds from playmakers
+    this.vel.x = dir.x * ps; this.vel.y = dir.y * ps;
     this.z = 12;
     this.passT = 0;
-    this.lobT = Math.max(0.25, dd / S.speed);
+    this.lobT = Math.max(0.25, dd / ps);
     this.bounce = !!bounce && !from.isGoalie;
     if (this.bounce) {
       // skip pass: low launch, gravity bounces it to the target under raised sticks

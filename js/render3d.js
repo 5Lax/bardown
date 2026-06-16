@@ -352,10 +352,10 @@ const Render3D = {
     const ti = Math.max(0, CONFIG.teams.indexOf(p.teamDef));
     const name = this.NAMES[(ti * 7 + p.idx * 5) % this.NAMES.length];
     const c = document.createElement('canvas');
-    c.width = 256; c.height = 56;
+    c.width = 256; c.height = 72;
     const x = c.getContext('2d');
     x.fillStyle = 'rgba(8,10,14,0.72)';
-    const w = 246, h = 44, rx = 10;
+    const w = 246, h = 60, rx = 10;
     x.beginPath();
     x.moveTo(5 + rx, 6);
     x.arcTo(5 + w, 6, 5 + w, 6 + h, rx);
@@ -364,14 +364,24 @@ const Render3D = {
     x.arcTo(5, 6, 5 + w, 6, rx);
     x.fill();
     x.fillStyle = p.teamDef.color;
-    x.fillRect(12, 14, 8, 28);
-    x.font = '900 28px "Arial Black",Impact,sans-serif';
+    x.fillRect(12, 12, 8, 48);
+    x.font = '900 26px "Arial Black",Impact,sans-serif';
     x.textAlign = 'left'; x.textBaseline = 'middle';
     x.fillStyle = '#ffffff';
-    x.fillText(num + '  ' + name, 30, 30);
+    x.fillText(num + '  ' + name, 30, 26);
+    // mini rating bars: SPD PWR SHT PAS HND
+    const stats = [['SPD', p.ratings.spd], ['PWR', p.ratings.pwr], ['SHT', p.ratings.sht], ['PAS', p.ratings.pass], ['HND', p.ratings.hands]];
+    x.font = '700 10px Arial';
+    stats.forEach(([lab, v], i) => {
+      const bx = 30 + i * 44, by = 46;
+      x.fillStyle = '#9fb0c0'; x.fillText(lab, bx, by);
+      x.fillStyle = 'rgba(255,255,255,0.18)'; x.fillRect(bx, by + 6, 36, 5);
+      x.fillStyle = v >= 1.08 ? '#39ff6a' : v <= 0.95 ? '#ff8855' : '#ffd24a';
+      x.fillRect(bx, by + 6, 36 * clamp((v - 0.85) / 0.35, 0.08, 1), 5);
+    });
     const tex = new THREE.CanvasTexture(c);
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
-    s.scale.set(64, 14, 1);
+    s.scale.set(72, 20, 1);
     return s;
   },
 
@@ -387,8 +397,7 @@ const Render3D = {
     g.setAttribute('position', new THREE.Float32BufferAttribute(H.pos, 3));
     g.setIndex(H.idx);
     g.computeVertexNormals();
-    g.rotateY(Math.PI / 2);  // STL long axis (Z) → stick local +X
-    g.rotateX(Math.PI);      // flip 180° around the shaft — scoop/face the right way round
+    g.rotateY(-Math.PI / 2); // long axis → +X with the throat at the shaft, scoop pointing forward
     this._headGeo = g;
     return g;
   },
@@ -529,9 +538,11 @@ const Render3D = {
     if (headGeo) {
       // the real RC1 head — shared geometry, tinted to the team's trim color
       const head = new THREE.Mesh(headGeo, new THREE.MeshLambertMaterial({ color: td.trim, side: THREE.DoubleSide }));
-      const L = goalie ? 23 : 19; // bigger heads
-      head.scale.setScalar(L);
-      head.position.set(goalie ? 24 : 22, 0, 0);
+      const L = goalie ? 22 : 19;
+      // goalie head is a widened-out version of the RC1 — bigger pocket (Y=depth, Z=width)
+      if (goalie) head.scale.set(L * 1.05, L * 1.35, L * 1.65);
+      else head.scale.setScalar(L);
+      head.position.set(goalie ? 25 : 22, 0, 0);
       stick.add(head);
     } else {
       const loop = new THREE.Mesh(new THREE.TorusGeometry(goalie ? 7.5 : 5.5, 1.1, 6, 14), trim);

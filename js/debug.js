@@ -28,6 +28,20 @@ const BARDOWN = {
     window.addEventListener('unhandledrejection', e => this.errors.push('rejection: ' + String(e.reason)));
   },
 
+  // console helper: per-player ratings for both teams
+  roster() {
+    const g = this.game; if (!g) return null;
+    const rows = [];
+    for (let t = 0; t < 2; t++) for (const p of g.teams[t]) {
+      if (p.isGoalie) continue;
+      const r = p.ratings;
+      rows.push({ team: g.teamDefs[t].name, idx: p.idx, role: r.role,
+        spd: +r.spd.toFixed(2), pwr: +r.pwr.toFixed(2), sht: +r.sht.toFixed(2), pass: +r.pass.toFixed(2), hands: +r.hands.toFixed(2) });
+    }
+    if (HAS_DOM && console.table) console.table(rows);
+    return rows;
+  },
+
   invariants() {
     const g = this.game, out = [];
     if (!g) return ['no game installed'];
